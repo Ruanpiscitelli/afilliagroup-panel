@@ -20,7 +20,7 @@ export default defineConfig({
     },
   },
   preview: {
-    allowedHosts: ['client-production-38e8.up.railway.app', 'localhost'],
+    allowedHosts: ['client-production-38e8.up.railway.app', 'localhost', 'affiliagroup.team'],
     port: 5173,
     host: true,
   },
