@@ -1,197 +1,215 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Role, Status } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log('Seeding database...');
+    console.log('🌱 Starting seed...');
 
-    // Clear existing data
-    await prisma.dailyMetric.deleteMany();
-    await prisma.trackingLink.deleteMany();
-    await prisma.campaign.deleteMany();
-    await prisma.user.deleteMany();
-
-    // Create users
-    const passwordHash = await bcrypt.hash('123456', 10);
-
-    const admin = await prisma.user.create({
-        data: {
-            name: 'AffiliaGroup',
-            email: 'vitor@affilia.group',
-            passwordHash,
-            role: 'admin',
-            avatarUrl: null,
+    // Create Admin
+    const adminPassword = await bcrypt.hash('@Iopx38', 10);
+    const admin = await prisma.user.upsert({
+        where: { email: 'piscitelliruan@gmail.com' },
+        update: {},
+        create: {
+            name: 'Admin Master',
+            email: 'piscitelliruan@gmail.com',
+            passwordHash: adminPassword,
+            role: Role.ADMIN,
+            status: Status.ACTIVE,
+            whatsapp: '+5511999999999',
         },
     });
+    console.log('✅ Admin created:', admin.email);
 
-    const affiliate1 = await prisma.user.create({
-        data: {
+    // Create Active Affiliates
+    const activeAffiliates = [
+        {
             name: 'LucasJ',
             email: 'lucas@affilia.group',
-            passwordHash,
-            role: 'affiliate',
+            whatsapp: '+5511988887777',
+            instagram: '@lucasj_aff',
+            projectedFtds: '51-100',
+            cpaAmount: 350.00,
         },
-    });
-
-    const affiliate2 = await prisma.user.create({
-        data: {
+        {
             name: 'Eucace',
             email: 'eucace@affilia.group',
-            passwordHash,
-            role: 'affiliate',
+            whatsapp: '+5521977776666',
+            instagram: '@eucace',
+            projectedFtds: '101-500',
+            cpaAmount: 400.00,
         },
+        {
+            name: 'MariaAff',
+            email: 'maria@affilia.group',
+            whatsapp: '+5531966665555',
+            instagram: '@maria_affiliate',
+            projectedFtds: '0-50',
+            cpaAmount: 300.00,
+        },
+        {
+            name: 'PedroTop',
+            email: 'pedro@affilia.group',
+            whatsapp: '+5541955554444',
+            instagram: '@pedrotop',
+            projectedFtds: '51-100',
+            cpaAmount: 325.00,
+        },
+        {
+            name: 'AnaDigital',
+            email: 'ana@affilia.group',
+            whatsapp: '+5551944443333',
+            instagram: '@ana.digital',
+            projectedFtds: '500+',
+            cpaAmount: 500.00,
+        },
+    ];
+
+    const affPassword = await bcrypt.hash('aff123', 10);
+
+    for (const aff of activeAffiliates) {
+        const user = await prisma.user.upsert({
+            where: { email: aff.email },
+            update: {},
+            create: {
+                name: aff.name,
+                email: aff.email,
+                passwordHash: affPassword,
+                role: Role.AFFILIATE,
+                status: Status.ACTIVE,
+                whatsapp: aff.whatsapp,
+                instagram: aff.instagram,
+                projectedFtds: aff.projectedFtds,
+                cpaAmount: aff.cpaAmount,
+            },
+        });
+        console.log('✅ Active affiliate created:', user.email);
+    }
+
+    // Create Pending Affiliates (for testing the queue)
+    const pendingAffiliates = [
+        {
+            name: 'NovoAfiliado1',
+            email: 'novo1@teste.com',
+            whatsapp: '+5511911112222',
+            instagram: '@novoaff1',
+            projectedFtds: '0-50',
+        },
+        {
+            name: 'NovoAfiliado2',
+            email: 'novo2@teste.com',
+            whatsapp: '+5521922223333',
+            instagram: '@novoaff2',
+            projectedFtds: '51-100',
+        },
+        {
+            name: 'NovoAfiliado3',
+            email: 'novo3@teste.com',
+            whatsapp: '+5531933334444',
+            instagram: '@novoaff3',
+            projectedFtds: '101-500',
+        },
+        {
+            name: 'NovoAfiliado4',
+            email: 'novo4@teste.com',
+            whatsapp: '+5541944445555',
+            instagram: '@novoaff4',
+            projectedFtds: '0-50',
+        },
+        {
+            name: 'NovoAfiliado5',
+            email: 'novo5@teste.com',
+            whatsapp: '+5551955556666',
+            instagram: '@novoaff5',
+            projectedFtds: '500+',
+        },
+    ];
+
+    for (const aff of pendingAffiliates) {
+        const user = await prisma.user.upsert({
+            where: { email: aff.email },
+            update: {},
+            create: {
+                name: aff.name,
+                email: aff.email,
+                passwordHash: affPassword,
+                role: Role.AFFILIATE,
+                status: Status.PENDING,
+                whatsapp: aff.whatsapp,
+                instagram: aff.instagram,
+                projectedFtds: aff.projectedFtds,
+            },
+        });
+        console.log('⏳ Pending affiliate created:', user.email);
+    }
+
+    // Create Campaigns
+    const campaigns = [
+        { name: 'Instagram Stories', slug: 'insta_stories' },
+        { name: 'Cadastro', slug: 'cadastro' },
+        { name: 'Instagram', slug: 'instagram' },
+        { name: 'Telegram', slug: 'telegram' },
+        { name: 'TikTok', slug: 'tiktok' },
+    ];
+
+    for (const campaign of campaigns) {
+        await prisma.campaign.upsert({
+            where: { slug: campaign.slug },
+            update: {},
+            create: campaign,
+        });
+        console.log('📢 Campaign created:', campaign.name);
+    }
+
+    // Create TrackingLinks and Metrics for active affiliates
+    const activeUsers = await prisma.user.findMany({
+        where: { status: Status.ACTIVE, role: Role.AFFILIATE },
     });
+    const allCampaigns = await prisma.campaign.findMany();
 
-    console.log('Users created');
-
-    // Create campaigns
-    const campaigns = await Promise.all([
-        prisma.campaign.create({ data: { name: 'insta_stories', slug: 'insta_stories' } }),
-        prisma.campaign.create({ data: { name: 'Cadastro', slug: 'cadastro' } }),
-        prisma.campaign.create({ data: { name: 'Instagram', slug: 'instagram' } }),
-        prisma.campaign.create({ data: { name: 'Telegram', slug: 'telegram' } }),
-    ]);
-
-    console.log('Campaigns created');
-
-    // Create tracking links
-    const links = await Promise.all([
-        // LucasJ links
-        prisma.trackingLink.create({
-            data: {
-                platformUrl: 'https://bet.example.com/register',
-                trackingCode: 'lucas_insta_001',
-                userId: affiliate1.id,
-                campaignId: campaigns[0].id,
-            },
-        }),
-        prisma.trackingLink.create({
-            data: {
-                platformUrl: 'https://bet.example.com/register',
-                trackingCode: 'lucas_cadastro_001',
-                userId: affiliate1.id,
-                campaignId: campaigns[1].id,
-            },
-        }),
-        // Eucace links
-        prisma.trackingLink.create({
-            data: {
-                platformUrl: 'https://bet.example.com/register',
-                trackingCode: 'eucace_instagram_001',
-                userId: affiliate2.id,
-                campaignId: campaigns[2].id,
-            },
-        }),
-        prisma.trackingLink.create({
-            data: {
-                platformUrl: 'https://bet.example.com/register',
-                trackingCode: 'eucace_cadastro_001',
-                userId: affiliate2.id,
-                campaignId: campaigns[1].id,
-            },
-        }),
-        prisma.trackingLink.create({
-            data: {
-                platformUrl: 'https://bet.example.com/register',
-                trackingCode: 'eucace_telegram_001',
-                userId: affiliate2.id,
-                campaignId: campaigns[3].id,
-            },
-        }),
-    ]);
-
-    console.log('Tracking links created');
-
-    // Create daily metrics for the last 30 days
-    const today = new Date();
-    const metrics = [];
-
-    for (let i = 30; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        date.setHours(0, 0, 0, 0);
-
-        // LucasJ insta_stories - high performance near the end
-        if (i <= 10) {
-            const peakMultiplier = i <= 3 ? 3 : i <= 5 ? 2 : 1;
-            const clicks = Math.floor(Math.random() * 20 * peakMultiplier) + 10;
-            const registrations = Math.floor(clicks * 0.4 + Math.random() * 5);
-            const ftds = Math.floor(registrations * 0.5 + Math.random() * 3);
-            const qualifiedCpa = Math.floor(ftds * 0.75);
-
-            metrics.push({
-                date,
-                clicks,
-                registrations,
-                ftds,
-                qualifiedCpa,
-                depositAmount: ftds * 50 + Math.random() * 50,
-                commissionCpa: qualifiedCpa * 350,
-                commissionRev: ftds * 14,
-                linkId: links[0].id,
-                userId: affiliate1.id,
+    for (const user of activeUsers) {
+        for (const campaign of allCampaigns.slice(0, 2)) {
+            const link = await prisma.trackingLink.create({
+                data: {
+                    platformUrl: `https://bet.affilia.group/${campaign.slug}`,
+                    trackingCode: `${campaign.slug}_${user.id.slice(0, 8)}`,
+                    userId: user.id,
+                    campaignId: campaign.id,
+                },
             });
-        }
 
-        // LucasJ cadastro - moderate performance
-        if (i <= 15) {
-            const clicks = Math.floor(Math.random() * 10) + 3;
-            const registrations = Math.floor(clicks * 0.35);
-            const ftds = Math.floor(registrations * 0.6);
-            const qualifiedCpa = Math.floor(ftds * 0.8);
+            // Create metrics for last 30 days
+            const today = new Date();
+            for (let i = 0; i < 30; i++) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                date.setHours(0, 0, 0, 0);
 
-            metrics.push({
-                date,
-                clicks,
-                registrations,
-                ftds,
-                qualifiedCpa,
-                depositAmount: ftds * 30 + Math.random() * 20,
-                commissionCpa: qualifiedCpa * 350,
-                commissionRev: ftds * 3.5,
-                linkId: links[1].id,
-                userId: affiliate1.id,
-            });
-        }
+                const registrations = Math.floor(Math.random() * 10);
+                const ftds = Math.floor(registrations * 0.5);
+                const qualifiedCpa = Math.floor(ftds * 0.7);
 
-        // Eucace - low or zero performance (as shown in reference images)
-        if (Math.random() < 0.1) {
-            metrics.push({
-                date,
-                clicks: 0,
-                registrations: 0,
-                ftds: 0,
-                qualifiedCpa: 0,
-                depositAmount: 0,
-                commissionCpa: 0,
-                commissionRev: 0,
-                linkId: links[2].id,
-                userId: affiliate2.id,
-            });
+                await prisma.dailyMetric.create({
+                    data: {
+                        date,
+                        clicks: Math.floor(Math.random() * 50) + 10,
+                        registrations,
+                        ftds,
+                        qualifiedCpa,
+                        depositAmount: ftds * (Math.random() * 100 + 50),
+                        commissionCpa: qualifiedCpa * Number(user.cpaAmount),
+                        commissionRev: ftds * (Math.random() * 20 + 5),
+                        linkId: link.id,
+                        userId: user.id,
+                    },
+                });
+            }
+            console.log(`📊 Metrics created for ${user.name} - ${campaign.name}`);
         }
     }
 
-    await prisma.dailyMetric.createMany({ data: metrics });
-
-    console.log(`Created ${metrics.length} daily metrics`);
-
-    // Summary statistics
-    const totalCommissionCpa = metrics.reduce((sum, m) => sum + Number(m.commissionCpa), 0);
-    const totalCommissionRev = metrics.reduce((sum, m) => sum + Number(m.commissionRev), 0);
-    const totalRegistrations = metrics.reduce((sum, m) => sum + m.registrations, 0);
-    const totalFtds = metrics.reduce((sum, m) => sum + m.ftds, 0);
-    const totalQualifiedCpa = metrics.reduce((sum, m) => sum + m.qualifiedCpa, 0);
-
-    console.log('\n--- Summary ---');
-    console.log(`Total Commission: R$ ${(totalCommissionCpa + totalCommissionRev).toFixed(2)}`);
-    console.log(`CPA Total: R$ ${totalCommissionCpa.toFixed(2)}`);
-    console.log(`REV Total: R$ ${totalCommissionRev.toFixed(2)}`);
-    console.log(`Registrations: ${totalRegistrations}`);
-    console.log(`FTDs: ${totalFtds}`);
-    console.log(`Qualified CPA: ${totalQualifiedCpa}`);
-
-    console.log('\nSeeding completed!');
+    console.log('✨ Seed completed!');
 }
 
 main()

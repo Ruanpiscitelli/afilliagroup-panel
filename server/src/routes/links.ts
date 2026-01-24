@@ -3,17 +3,18 @@ import { PrismaClient } from '@prisma/client';
 
 const router = Router();
 
-// Get all links for current user
+// Get all links for current user (for affiliates)
 router.get('/', async (req: Request, res: Response) => {
     const prisma = req.app.get('prisma') as PrismaClient;
+    const user = (req as any).user;
 
     try {
         const links = await prisma.trackingLink.findMany({
+            where: {
+                userId: user.id, // Filter by current user
+            },
             include: {
                 campaign: true,
-                user: {
-                    select: { name: true },
-                },
             },
             orderBy: { createdAt: 'desc' },
         });

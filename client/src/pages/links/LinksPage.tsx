@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link2, Copy, ExternalLink } from 'lucide-react';
+import { Copy, Search } from 'lucide-react';
 import { linksApi } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
     Table,
     TableBody,
@@ -11,21 +13,32 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+
+interface Link {
+    id: number;
+    platformUrl: string;
+    trackingCode: string;
+    campaign: {
+        name: string;
+    };
+}
 
 export function LinksPage() {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [copiedId, setCopiedId] = useState<number | null>(null);
+
     const { data, isLoading } = useQuery({
-        queryKey: ['links'],
+        queryKey: ['my-links'],
         queryFn: async () => {
             const { data } = await linksApi.getAll();
             return data;
         },
     });
 
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-        // TODO: Add toast notification
+    const copyToClipboard = (link: Link) => {
+        navigator.clipboard.writeText(link.platformUrl);
+        setCopiedId(link.id);
+        setTimeout(() => setCopiedId(null), 2000);
     };
 
     if (isLoading) {
@@ -36,76 +49,84 @@ export function LinksPage() {
         );
     }
 
-    const links = data?.links || [];
+    const links: Link[] = data?.links || [];
+
+    // Filter links by search
+    const filteredLinks = links.filter(
+        (link) =>
+            link.campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            link.platformUrl.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
         <div className="space-y-6">
             {/* Page Header */}
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-semibold text-slate-900">Meus Links</h1>
-                <Button className="gap-2">
-                    <Link2 className="h-4 w-4" />
-                    Novo Link
-                </Button>
             </div>
 
-            {/* Links Table */}
+            {/* Links Card */}
             <Card>
-                <CardHeader>
-                    <CardTitle className="text-base font-medium">Links de Rastreamento</CardTitle>
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-medium">Lista de links</CardTitle>
+                    <p className="text-sm text-slate-500">
+                        Estes são os links padrão disponibilizados pela equipe. Alguns dos seus links de campanha podem não aparecer aqui, dependendo de como foram gerados.
+                    </p>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
+                    {/* Search */}
+                    <div className="flex justify-end mb-4">
+                        <div className="relative w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <Input
+                                placeholder="Pesquisar"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-9"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Table */}
                     <Table>
                         <TableHeader>
-                            <TableRow>
-                                <TableHead>Código</TableHead>
-                                <TableHead>Campanha</TableHead>
-                                <TableHead>URL de Destino</TableHead>
-                                <TableHead>Criado em</TableHead>
-                                <TableHead className="text-right">Ações</TableHead>
+                            <TableRow className="bg-slate-50">
+                                <TableHead className="font-medium">Campanha</TableHead>
+                                <TableHead className="font-medium">Link</TableHead>
+                                <TableHead className="text-right font-medium w-24"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {links.length === 0 ? (
+                            {filteredLinks.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center text-slate-500 py-8">
-                                        Nenhum link encontrado. Crie seu primeiro link de afiliado!
+                                    <TableCell colSpan={3} className="text-center text-slate-500 py-12">
+                                        {links.length === 0
+                                            ? "Nenhum link disponível ainda. Entre em contato com a equipe."
+                                            : "Nenhum link encontrado para essa busca."
+                                        }
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                links.map((link: any) => (
-                                    <TableRow key={link.id}>
-                                        <TableCell>
-                                            <code className="px-2 py-1 bg-slate-100 rounded text-sm font-mono">
-                                                {link.trackingCode}
-                                            </code>
+                                filteredLinks.map((link) => (
+                                    <TableRow key={link.id} className="hover:bg-slate-50">
+                                        <TableCell className="font-medium text-slate-900">
+                                            {link.campaign.name}
                                         </TableCell>
-                                        <TableCell className="font-medium">{link.campaign.name}</TableCell>
-                                        <TableCell className="text-slate-600 max-w-xs truncate">
-                                            {link.platformUrl}
-                                        </TableCell>
-                                        <TableCell className="text-slate-500">
-                                            {format(new Date(link.createdAt), "d 'de' MMM yyyy", { locale: ptBR })}
+                                        <TableCell className="text-slate-600">
+                                            <span className="font-mono text-sm">
+                                                {link.platformUrl}
+                                            </span>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => copyToClipboard(`${link.platformUrl}?ref=${link.trackingCode}`)}
-                                                    title="Copiar link"
-                                                >
-                                                    <Copy className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => window.open(link.platformUrl, '_blank')}
-                                                    title="Abrir URL"
-                                                >
-                                                    <ExternalLink className="h-4 w-4" />
-                                                </Button>
-                                            </div>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => copyToClipboard(link)}
+                                                className="gap-2"
+                                            >
+                                                <Copy className="h-3.5 w-3.5" />
+                                                {copiedId === link.id ? 'Copiado!' : 'Copiar'}
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))

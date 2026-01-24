@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link2, BarChart3, HelpCircle, Settings2, ArrowRight, UserPlus } from 'lucide-react';
+import { Link2, BarChart3, HelpCircle, Settings2, ArrowRight } from 'lucide-react';
 import { metricsApi } from '@/services/api';
 import { useDateRange } from '@/hooks/useDateRange';
 import { formatCurrency, formatPercent } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { FunnelChart } from '@/components/charts/FunnelChart';
+import { useAffiliate } from '@/contexts/AffiliateContext';
 import {
     Table,
     TableBody,
@@ -17,25 +17,31 @@ import {
 
 export function DashboardPage() {
     const { formattedRange } = useDateRange();
+    const { selectedAffiliateId } = useAffiliate();
+
+    const affiliateParams = (selectedAffiliateId && selectedAffiliateId !== 'all') ? selectedAffiliateId : undefined;
 
     const { data: dashboardData, isLoading: isLoadingDashboard } = useQuery({
-        queryKey: ['dashboard', formattedRange],
+        // Incluir selectedAffiliateId na key para refazer query ao mudar
+        queryKey: ['dashboard', formattedRange, affiliateParams],
         queryFn: async () => {
             const { data } = await metricsApi.getDashboard(
                 formattedRange.startDate,
-                formattedRange.endDate
+                formattedRange.endDate,
+                affiliateParams
             );
             return data;
         },
     });
 
     const { data: topCampaignsData, isLoading: isLoadingCampaigns } = useQuery({
-        queryKey: ['topCampaigns', formattedRange],
+        queryKey: ['topCampaigns', formattedRange, affiliateParams],
         queryFn: async () => {
             const { data } = await metricsApi.getTopCampaigns(
                 formattedRange.startDate,
                 formattedRange.endDate,
-                5
+                5,
+                affiliateParams
             );
             return data;
         },
@@ -65,16 +71,6 @@ export function DashboardPage() {
             {/* Page Header */}
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-semibold text-slate-900">Início</h1>
-                <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="gap-2">
-                        <UserPlus className="h-4 w-4" />
-                        Contas
-                    </Button>
-                    <Button variant="outline" size="sm" className="gap-2">
-                        <UserPlus className="h-4 w-4" />
-                        Afiliados
-                    </Button>
-                </div>
             </div>
 
             {/* Commission Cards */}

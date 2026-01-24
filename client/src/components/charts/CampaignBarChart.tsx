@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell, LabelList, CartesianGrid } from 'recharts';
 import { formatCurrency } from '@/lib/utils';
 
 interface CampaignData {
@@ -13,51 +13,100 @@ interface CampaignBarChartProps {
     title: string;
 }
 
-export function CampaignBarChart({ data, dataKey, title }: CampaignBarChartProps) {
-    const colors = ['#1e3a5f', '#3b5998', '#8b9dc3', '#c5cdd9'];
+// Single color for all bars - clean look
+const BAR_COLOR = '#1e3a5f';
+
+// Format large numbers with k suffix
+const formatAxisValue = (value: number): string => {
+    if (value >= 1000000) {
+        return `${(value / 1000000).toFixed(1)}M`;
+    }
+    if (value >= 1000) {
+        return `${(value / 1000).toFixed(0)}k`;
+    }
+    return value.toString();
+};
+
+// Custom tooltip - simple and clean
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="bg-white px-3 py-2 rounded shadow-lg border border-slate-200 text-sm">
+                <p className="font-medium text-slate-700">{label}</p>
+                <p className="text-slate-900 font-semibold">
+                    {formatCurrency(payload[0].value)}
+                </p>
+            </div>
+        );
+    }
+    return null;
+};
+
+export function CampaignBarChart({ data, dataKey }: CampaignBarChartProps) {
+    // Sort data by value descending and take top 4
+    const sortedData = [...data]
+        .sort((a, b) => b[dataKey] - a[dataKey])
+        .slice(0, 4);
+
+    // Calculate max value for domain
+    const maxValue = Math.max(...sortedData.map(d => d[dataKey]), 0);
+    const domainMax = maxValue * 1.2;
 
     return (
-        <div className="space-y-3">
-            <h3 className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                {title}
-                <span className="text-slate-400 text-xs">ℹ</span>
-            </h3>
-            <div className="h-[180px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                        data={data}
-                        layout="vertical"
-                        margin={{ top: 0, right: 60, left: 80, bottom: 0 }}
+        <div className="h-[180px]">
+            <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                    data={sortedData}
+                    layout="vertical"
+                    margin={{ top: 0, right: 70, left: 0, bottom: 0 }}
+                    barCategoryGap="15%"
+                >
+                    <CartesianGrid
+                        strokeDasharray="3 3"
+                        horizontal={false}
+                        stroke="#f1f5f9"
+                    />
+                    <XAxis
+                        type="number"
+                        domain={[0, domainMax]}
+                        tick={{ fontSize: 10, fill: '#94a3b8' }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={formatAxisValue}
+                        tickCount={5}
+                    />
+                    <YAxis
+                        type="category"
+                        dataKey="name"
+                        tick={{ fontSize: 11, fill: '#64748b' }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={70}
+                    />
+                    <Tooltip
+                        content={<CustomTooltip />}
+                        cursor={{ fill: 'rgba(148, 163, 184, 0.08)' }}
+                    />
+                    <Bar
+                        dataKey={dataKey}
+                        radius={[0, 2, 2, 0]}
+                        barSize={18}
                     >
-                        <XAxis type="number" hide />
-                        <YAxis
-                            type="category"
-                            dataKey="name"
-                            tick={{ fontSize: 12, fill: '#64748b' }}
-                            axisLine={false}
-                            tickLine={false}
-                        />
-                        <Tooltip
-                            formatter={(value: number) => formatCurrency(value)}
-                            labelFormatter={(label) => label}
-                        />
-                        <Bar
+                        {sortedData.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={BAR_COLOR} />
+                        ))}
+                        <LabelList
                             dataKey={dataKey}
-                            radius={[0, 4, 4, 0]}
-                            label={{
-                                position: 'right',
-                                formatter: (value: number) => formatCurrency(value),
-                                fontSize: 11,
-                                fill: '#64748b'
+                            position="right"
+                            formatter={(value: any) => formatCurrency(value)}
+                            style={{
+                                fontSize: 10,
+                                fill: '#64748b',
                             }}
-                        >
-                            {data.map((_, index) => (
-                                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                            ))}
-                        </Bar>
-                    </BarChart>
-                </ResponsiveContainer>
-            </div>
+                        />
+                    </Bar>
+                </BarChart>
+            </ResponsiveContainer>
         </div>
     );
 }

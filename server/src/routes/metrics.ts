@@ -1,24 +1,88 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 
 const router = Router();
+
+// Helper to get allowed User IDs based on role and request
+const getAllowedUserIds = async (prisma: PrismaClient, user: any, requestedIds?: string) => {
+    if (user.role === 'ADMIN') {
+        if (requestedIds && requestedIds !== 'all') {
+            return requestedIds.split(',');
+        }
+        return undefined; // No filter = all
+    }
+
+    // For Affiliates
+    const userWithChildren = await prisma.user.findUnique({
+        where: { id: user.id },
+        include: { children: { select: { id: true } } }
+    });
+
+    const allowedIds = [user.id, ...(userWithChildren?.children.map(c => c.id) || [])];
+
+    if (requestedIds && requestedIds !== 'all') {
+        const requestedList = requestedIds.split(',');
+        const validIds = requestedList.filter(id => allowedIds.includes(id));
+        return validIds.length > 0 ? validIds : [user.id]; // Fallback to self if invalid
+    }
+
+    return allowedIds; // Default to self + children
+};
+
+// Get aggregated metrics for dashboard
+// Get list of affiliates
+router.get('/affiliates', async (req: Request, res: Response) => {
+    const prisma = req.app.get('prisma') as PrismaClient;
+
+    try {
+        const affiliates = await prisma.user.findMany({
+            where: {
+                role: 'AFFILIATE',
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+            },
+            orderBy: {
+                name: 'asc',
+            },
+        });
+
+        return res.json({ affiliates });
+    } catch (error) {
+        console.error('Affiliates error:', error);
+        return res.status(500).json({ error: 'Erro ao buscar afiliados' });
+    }
+});
 
 // Get aggregated metrics for dashboard
 router.get('/dashboard', async (req: Request, res: Response) => {
     const prisma = req.app.get('prisma') as PrismaClient;
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, affiliateId } = req.query;
+    const user = (req as any).user;
+
+    if (!user) return res.status(401).json({ error: 'Não autorizado' });
 
     try {
         const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30));
         const end = endDate ? new Date(endDate as string) : new Date();
 
-        const metrics = await prisma.dailyMetric.aggregate({
-            where: {
-                date: {
-                    gte: start,
-                    lte: end,
-                },
+        const filterIds = await getAllowedUserIds(prisma, user, affiliateId as string);
+
+        const whereClause: any = {
+            date: {
+                gte: start,
+                lte: end,
             },
+        };
+
+        if (filterIds) {
+            whereClause.userId = { in: filterIds };
+        }
+
+        const metrics = await prisma.dailyMetric.aggregate({
+            where: whereClause,
             _sum: {
                 clicks: true,
                 registrations: true,
@@ -33,12 +97,7 @@ router.get('/dashboard', async (req: Request, res: Response) => {
         // Funnel data
         const funnelData = await prisma.dailyMetric.groupBy({
             by: ['date'],
-            where: {
-                date: {
-                    gte: start,
-                    lte: end,
-                },
-            },
+            where: whereClause,
             _sum: {
                 clicks: true,
                 registrations: true,
@@ -78,20 +137,31 @@ router.get('/dashboard', async (req: Request, res: Response) => {
 // Get top campaigns by performance
 router.get('/top-campaigns', async (req: Request, res: Response) => {
     const prisma = req.app.get('prisma') as PrismaClient;
-    const { startDate, endDate, limit = '5' } = req.query;
+    const { startDate, endDate, limit = '5', affiliateId } = req.query;
+    const user = (req as any).user;
+
+    if (!user) return res.status(401).json({ error: 'Não autorizado' });
 
     try {
         const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30));
         const end = endDate ? new Date(endDate as string) : new Date();
 
+        const filterIds = await getAllowedUserIds(prisma, user, affiliateId as string);
+
+        const whereClause: any = {
+            date: {
+                gte: start,
+                lte: end,
+            },
+        };
+
+        if (filterIds) {
+            whereClause.userId = { in: filterIds };
+        }
+
         const campaigns = await prisma.dailyMetric.groupBy({
             by: ['linkId'],
-            where: {
-                date: {
-                    gte: start,
-                    lte: end,
-                },
-            },
+            where: whereClause,
             _sum: {
                 clicks: true,
                 registrations: true,
@@ -117,7 +187,7 @@ router.get('/top-campaigns', async (req: Request, res: Response) => {
                     include: {
                         campaign: true,
                         user: {
-                            select: { name: true },
+                            select: { id: true, name: true },
                         },
                     },
                 });
@@ -126,6 +196,7 @@ router.get('/top-campaigns', async (req: Request, res: Response) => {
                 const conversionRate = item._sum.registrations ? ((item._sum.ftds || 0) / item._sum.registrations) * 100 : 0;
 
                 return {
+                    affiliateId: link?.user.id,
                     affiliate: link?.user.name || 'Unknown',
                     campaign: link?.campaign.name || 'Unknown',
                     registrations: item._sum.registrations || 0,
@@ -150,13 +221,24 @@ router.get('/top-campaigns', async (req: Request, res: Response) => {
 // Get metrics by campaign for charts
 router.get('/by-campaign', async (req: Request, res: Response) => {
     const prisma = req.app.get('prisma') as PrismaClient;
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, affiliateId } = req.query;
+    const user = (req as any).user;
+
+    if (!user) return res.status(401).json({ error: 'Não autorizado' });
 
     try {
         const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30));
         const end = endDate ? new Date(endDate as string) : new Date();
 
+        const filterIds = await getAllowedUserIds(prisma, user, affiliateId as string);
+
+        const linkWhere: any = {};
+        if (filterIds) {
+            linkWhere.userId = { in: filterIds };
+        }
+
         const links = await prisma.trackingLink.findMany({
+            where: linkWhere,
             include: {
                 campaign: true,
                 metrics: {
@@ -203,20 +285,31 @@ router.get('/by-campaign', async (req: Request, res: Response) => {
 // Get time series data
 router.get('/time-series', async (req: Request, res: Response) => {
     const prisma = req.app.get('prisma') as PrismaClient;
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, affiliateId } = req.query;
+    const user = (req as any).user;
+
+    if (!user) return res.status(401).json({ error: 'Não autorizado' });
 
     try {
         const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30));
         const end = endDate ? new Date(endDate as string) : new Date();
 
+        const filterIds = await getAllowedUserIds(prisma, user, affiliateId as string);
+
+        const whereClause: any = {
+            date: {
+                gte: start,
+                lte: end,
+            },
+        };
+
+        if (filterIds) {
+            whereClause.userId = { in: filterIds };
+        }
+
         const data = await prisma.dailyMetric.groupBy({
             by: ['date'],
-            where: {
-                date: {
-                    gte: start,
-                    lte: end,
-                },
-            },
+            where: whereClause,
             _sum: {
                 registrations: true,
                 ftds: true,
