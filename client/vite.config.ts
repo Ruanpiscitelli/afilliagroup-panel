@@ -12,6 +12,8 @@ export default defineConfig({
     },
   },
   server: {
+    allowedHosts: ['affiliagroup.team', 'localhost', 'client-production-38e8.up.railway.app'],
+    host: true,
     proxy: {
       '/api': {
         target: process.env.VITE_API_URL || 'http://localhost:3001',
