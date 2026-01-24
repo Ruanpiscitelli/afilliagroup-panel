@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, Navigate } from 'react-router-dom';
 import {
     Users,
     Bell,
@@ -10,9 +10,11 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { authApi, adminApi } from '@/services/api';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
 
 export function AdminLayout() {
     const navigate = useNavigate();
+    const { user, isLoading } = useAuth();
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
     const { data: statsData } = useQuery({
@@ -22,7 +24,20 @@ export function AdminLayout() {
             return data;
         },
         refetchInterval: 30000,
+        enabled: !!user && user.role === 'ADMIN',
     });
+
+    if (isLoading) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-slate-900">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-white/20 border-t-white" />
+            </div>
+        );
+    }
+
+    if (!user || user.role !== 'ADMIN') {
+        return <Navigate to="/login" replace />;
+    }
 
     const handleLogout = async () => {
         await authApi.logout();

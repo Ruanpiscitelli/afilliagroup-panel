@@ -3,7 +3,7 @@ import { Home, BarChart3, Link2, Settings, ChevronRight, Shield, LogOut } from '
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar } from '@/components/ui/avatar';
-import otgLogo from '@/assets/afgret.png';
+import otgLogo from '@/assets/logo.png';
 
 const navigation = [
     { name: 'Início', href: '/', icon: Home },
@@ -119,8 +119,8 @@ export function Sidebar() {
                             className="h-8 w-8"
                         />
                         <div className="flex flex-col">
-                            <span className="text-sm font-medium text-slate-900">{user?.name || 'AffiliaGroup'}</span>
-                            <span className="text-xs text-slate-500">{user?.email || 'user@affilia.group'}</span>
+                            <span className="text-sm font-medium text-slate-900 truncate max-w-[130px]">{user?.name}</span>
+                            <span className="text-xs text-slate-500 truncate max-w-[130px]">{user?.email}</span>
                         </div>
                     </div>
                     <ChevronRight className="h-4 w-4 text-slate-400" />

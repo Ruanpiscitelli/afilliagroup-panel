@@ -1,0 +1,8 @@
+Starting Container
+> vite preview --host 0.0.0.0 --port ${PORT:-5173}
+
+npm warn config production Use `--omit=dev` instead.
+
+> client@0.0.0 start
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://10.180.36.212:[1m5173[22m/[39m

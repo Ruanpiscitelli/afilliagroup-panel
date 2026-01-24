@@ -54,10 +54,12 @@ router.post('/login', async (req: Request, res: Response) => {
             { expiresIn: '7d' }
         );
 
+        const isProduction = process.env.NODE_ENV === 'production';
+
         res.cookie('token', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'lax', // Use 'none' for subdomain support on public suffixes
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         });
 
@@ -138,7 +140,12 @@ router.post('/register', async (req: Request, res: Response) => {
 
 // Logout
 router.post('/logout', (_req: Request, res: Response) => {
-    res.clearCookie('token');
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.clearCookie('token', {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+    });
     return res.json({ message: 'Logout realizado com sucesso' });
 });
 

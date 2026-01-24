@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import otgLogo from '@/assets/afgret.png';
+import otgLogo from '@/assets/logo.png';
 
 export function LoginPage() {
     const { user, login, isLoading } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -24,8 +26,17 @@ export function LoginPage() {
 
         try {
             await login(email, password);
-        } catch {
-            setError('Email ou senha inválidos');
+        } catch (err: any) {
+            console.error('Login Error:', err);
+            if (err.message === 'Network Error') {
+                setError('Erro de conexão. Verifique se o servidor está online.');
+            } else if (err.response?.status === 401) {
+                setError('Email ou senha inválidos');
+            } else if (err.response?.data?.error) {
+                setError(err.response.data.error);
+            } else {
+                setError('Erro ao fazer login. Tente novamente.');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -73,14 +84,24 @@ export function LoginPage() {
                             <label htmlFor="password" className="text-sm font-medium text-slate-700">
                                 Senha
                             </label>
-                            <Input
-                                id="password"
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="••••••••"
-                                required
-                            />
+                            <div className="relative">
+                                <Input
+                                    id="password"
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="pr-10"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+                                >
+                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
                         </div>
                         <Button type="submit" className="w-full" disabled={isSubmitting}>
                             {isSubmitting ? 'Entrando...' : 'Entrar'}

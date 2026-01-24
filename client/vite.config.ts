@@ -14,9 +14,14 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: process.env.VITE_API_URL || 'http://localhost:3001',
         changeOrigin: true,
       },
     },
+  },
+  preview: {
+    allowedHosts: ['client-production-38e8.up.railway.app', 'localhost'],
+    port: 5173,
+    host: true,
   },
 })
