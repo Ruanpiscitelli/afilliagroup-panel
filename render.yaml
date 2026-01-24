@@ -9,9 +9,7 @@ services:
     startCommand: npm start
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: afilliagroup-db
-          property: connectionString
+        sync: false # O usuário vai colar o link do banco dele no painel do Render
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGIN
@@ -34,9 +32,3 @@ services:
           type: web
           name: afilliagroup-api
           property: url
-
-databases:
-  - name: afilliagroup-db
-    plan: free
-    databaseName: afilliagroup
-    user: afilliauser
