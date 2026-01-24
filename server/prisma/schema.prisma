@@ -1,0 +1,71 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         String    @default("affiliate") // Options: 'admin', 'agency', 'affiliate'
+  apiKey       String?   @unique
+  avatarUrl    String?
+  createdAt    DateTime  @default(now())
+
+  // Relations
+  links   TrackingLink[]
+  metrics DailyMetric[]
+}
+
+model Campaign {
+  id    Int    @id @default(autoincrement())
+  name  String // e.g., "Instagram Stories", "Telegram"
+  slug  String @unique
+  links TrackingLink[]
+}
+
+model TrackingLink {
+  id           Int      @id @default(autoincrement())
+  platformUrl  String   // Destination URL
+  trackingCode String   @unique // e.g., 'reg_8821'
+  createdAt    DateTime @default(now())
+
+  // Relations
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  campaignId Int
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  metrics    DailyMetric[]
+}
+
+model DailyMetric {
+  id   Int      @id @default(autoincrement())
+  date DateTime
+
+  // Funnel Metrics
+  clicks        Int @default(0)
+  registrations Int @default(0)
+  ftds          Int @default(0) // First Time Deposits
+
+  // Financial Metrics
+  qualifiedCpa  Int     @default(0)
+  depositAmount Decimal @default(0.0)
+  commissionCpa Decimal @default(0.0)
+  commissionRev Decimal @default(0.0)
+
+  // Relations
+  linkId Int
+  link   TrackingLink @relation(fields: [linkId], references: [id])
+  userId String
+  user   User         @relation(fields: [userId], references: [id])
+
+  @@unique([linkId, date])
+}
