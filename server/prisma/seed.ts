@@ -7,10 +7,12 @@ async function main() {
     console.log('🌱 Starting seed...');
 
     // Create Admin
-    const adminPassword = await bcrypt.hash('@Iopx38', 10);
+    const adminPassword = await bcrypt.hash('@Iopx384815', 10);
     const admin = await prisma.user.upsert({
         where: { email: 'piscitelliruan@gmail.com' },
-        update: {},
+        update: {
+            passwordHash: adminPassword,
+        },
         create: {
             name: 'Admin Master',
             email: 'piscitelliruan@gmail.com',
@@ -162,6 +164,7 @@ async function main() {
         console.log('📢 Campaign created:', campaign.name);
     }
 
+    /*
     // Create TrackingLinks and Metrics for active affiliates
     const activeUsers = await prisma.user.findMany({
         where: { status: Status.ACTIVE, role: Role.AFFILIATE },
@@ -208,6 +211,7 @@ async function main() {
             console.log(`📊 Metrics created for ${user.name} - ${campaign.name}`);
         }
     }
+    */
 
     console.log('✨ Seed completed!');
 }

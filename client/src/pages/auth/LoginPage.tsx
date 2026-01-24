@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import otgLogo from '@/assets/afgret.png';
 
 export function LoginPage() {
     const { user, login, isLoading } = useAuth();
@@ -43,10 +44,7 @@ export function LoginPage() {
             <Card className="w-full max-w-md">
                 <CardHeader className="text-center">
                     <div className="mx-auto mb-4 flex items-center gap-2">
-                        <div className="w-10 h-10 bg-slate-900 rounded flex items-center justify-center">
-                            <span className="text-white font-bold text-sm">OTG</span>
-                        </div>
-                        <span className="font-semibold text-xl text-slate-900">PARTNERS</span>
+                        <img src={otgLogo} alt="OTG Partners" className="h-10 w-auto mx-auto" />
                     </div>
                     <CardTitle className="text-2xl">Bem-vindo de volta</CardTitle>
                     <CardDescription>Entre com suas credenciais para acessar o painel</CardDescription>
@@ -88,11 +86,8 @@ export function LoginPage() {
                             {isSubmitting ? 'Entrando...' : 'Entrar'}
                         </Button>
                     </form>
-                    <p className="mt-4 text-center text-xs text-slate-500">
-                        Use: vitor@affilia.group / 123456
-                    </p>
                 </CardContent>
             </Card>
-        </div>
+        </div >
     );
 }

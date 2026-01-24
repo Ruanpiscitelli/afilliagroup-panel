@@ -3,6 +3,7 @@ import { Home, BarChart3, Link2, Settings, ChevronRight, Shield, LogOut } from '
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar } from '@/components/ui/avatar';
+import otgLogo from '@/assets/afgret.png';
 
 const navigation = [
     { name: 'Início', href: '/', icon: Home },
@@ -25,10 +26,7 @@ export function Sidebar() {
             {/* Logo */}
             <div className="flex h-16 items-center gap-2 px-6 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-slate-900 rounded flex items-center justify-center">
-                        <span className="text-white font-bold text-xs">OTG</span>
-                    </div>
-                    <span className="font-semibold text-slate-900">PARTNERS</span>
+                    <img src={otgLogo} alt="OTG Partners" className="h-10 w-auto" />
                 </div>
             </div>
 
