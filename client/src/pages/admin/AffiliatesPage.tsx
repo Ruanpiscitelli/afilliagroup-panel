@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Ban, Check, X, ChevronRight, Save } from 'lucide-react';
+import { Plus, Pencil, Ban, Check, X, ChevronRight, Save, Maximize2, Minimize2, Trash2 } from 'lucide-react';
 import { adminApi } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,6 +69,7 @@ export function AdminAffiliatesPage() {
     const queryClient = useQueryClient();
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [selectedAffiliate, setSelectedAffiliate] = useState<string | null>(null);
+    const [isMaximized, setIsMaximized] = useState(false);
     const [editingMetric, setEditingMetric] = useState<string | null>(null);
     const [metricValues, setMetricValues] = useState<Partial<Metric>>({});
     const [userData, setUserData] = useState<Partial<Affiliate>>({});
@@ -159,6 +160,16 @@ export function AdminAffiliatesPage() {
             queryClient.invalidateQueries({ queryKey: ['admin-affiliates'] });
             queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
             setSelectedAffiliate(null);
+        },
+    });
+
+    const deleteUserMutation = useMutation({
+        mutationFn: (userId: string) => adminApi.deleteUser(userId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-affiliates'] });
+            queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+            setSelectedAffiliate(null);
+            setIsMaximized(false);
         },
     });
 
@@ -430,18 +441,31 @@ export function AdminAffiliatesPage() {
             {/* Detail Panel */}
             {
                 selectedAffiliate && (
-                    <div className="w-[500px] border-l border-slate-200 bg-white overflow-y-auto">
-                        <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+                    <div className={`${isMaximized ? 'fixed inset-0 z-50 w-full h-full' : 'w-[800px] border-l'} border-slate-200 bg-white overflow-y-auto transition-all duration-200`}>
+                        <div className="p-6 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
                             <h2 className="text-lg font-semibold text-slate-900">
                                 {affiliateDetails?.user?.name || 'Carregando...'}
                             </h2>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setSelectedAffiliate(null)}
-                            >
-                                <X className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setIsMaximized(!isMaximized)}
+                                    title={isMaximized ? "Restaurar tamanho" : "Maximizar painel"}
+                                >
+                                    {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                        setIsMaximized(false);
+                                        setSelectedAffiliate(null);
+                                    }}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
 
                         {isLoadingDetails ? (
@@ -556,9 +580,22 @@ export function AdminAffiliatesPage() {
                                                     banUserMutation.mutate(selectedAffiliate);
                                                 }
                                             }}
+                                            className="text-orange-600 border-orange-200 hover:bg-orange-50"
+                                        >
+                                            <Ban className="h-4 w-4 mr-2" />
+                                            Banir
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => {
+                                                if (confirm(`ATENÇÃO: Deseja EXCLUIR DEFINITIVAMENTE ${affiliateDetails?.user?.name}?\n\nIsso apagará TODOS os dados, métricas, links e histórico deste usuário.\n\nEsta ação NÃO pode ser desfeita.`)) {
+                                                    deleteUserMutation.mutate(selectedAffiliate);
+                                                }
+                                            }}
                                             className="text-red-600 border-red-200 hover:bg-red-50"
                                         >
-                                            <Ban className="h-4 w-4" />
+                                            <Trash2 className="h-4 w-4 mr-2" />
+                                            Excluir
                                         </Button>
                                     </div>
                                 </TabsContent>
@@ -659,120 +696,149 @@ export function AdminAffiliatesPage() {
                                             <p>Nenhuma métrica encontrada</p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-2">
-                                            {metrics.slice(0, 10).map((metric) => (
-                                                <div
-                                                    key={metric.id}
-                                                    className="p-3 border border-slate-200 rounded-lg"
-                                                >
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <span className="text-xs text-slate-500">{formatDate(metric.date)} - {metric.campaign}</span>
-                                                        {editingMetric === metric.id ? (
-                                                            <div className="flex gap-1">
-                                                                <Button size="sm" variant="ghost" onClick={() => handleSaveMetric(metric.id)}>
-                                                                    <Check className="h-3 w-3 text-green-600" />
-                                                                </Button>
-                                                                <Button size="sm" variant="ghost" onClick={() => setEditingMetric(null)}>
-                                                                    <X className="h-3 w-3 text-red-600" />
-                                                                </Button>
-                                                            </div>
-                                                        ) : (
-                                                            <Button size="sm" variant="ghost" onClick={() => startEditMetric(metric)}>
-                                                                <Pencil className="h-3 w-3 text-slate-400" />
-                                                            </Button>
-                                                        )}
-                                                    </div>
+                                        <div className="border rounded-md overflow-hidden">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow className="bg-slate-100 hover:bg-slate-100 border-b">
+                                                        <TableHead className="w-[100px] font-bold text-slate-900 border-r">Data</TableHead>
+                                                        <TableHead className="text-right font-bold text-slate-900 border-r">Cadastros</TableHead>
+                                                        <TableHead className="text-right font-bold text-slate-900 border-r">FTDs</TableHead>
+                                                        <TableHead className="text-right font-bold text-slate-900 border-r">CPA Qual.</TableHead>
+                                                        <TableHead className="text-right font-bold text-slate-900 border-r">Depósito</TableHead>
+                                                        <TableHead className="text-right font-bold text-slate-900 border-r">Conv%</TableHead>
+                                                        <TableHead className="text-right font-bold text-slate-900 border-r">CPA R$</TableHead>
+                                                        <TableHead className="text-right font-bold text-slate-900 border-r">REV R$</TableHead>
+                                                        <TableHead className="text-right font-bold text-slate-900">Total</TableHead>
+                                                        <TableHead className="w-[80px]"></TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {metrics.slice(0, 50).map((metric) => {
+                                                        const isEditing = editingMetric === metric.id;
+                                                        const totalCommission = Number(metric.commissionCpa) + Number(metric.commissionRev);
+                                                        const conversionRate = metric.registrations > 0
+                                                            ? ((metric.ftds / metric.registrations) * 100).toFixed(1)
+                                                            : '0.0';
 
-                                                    {editingMetric === metric.id ? (
-                                                        <div className="grid grid-cols-3 gap-2 text-xs">
-                                                            <div>
-                                                                <Label className="text-[10px]">Cadastros</Label>
-                                                                <Input
-                                                                    type="number"
-                                                                    className="h-7 text-xs"
-                                                                    value={metricValues.registrations ?? 0}
-                                                                    onChange={(e) => setMetricValues({ ...metricValues, registrations: parseInt(e.target.value) || 0 })}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <Label className="text-[10px]">FTDs</Label>
-                                                                <Input
-                                                                    type="number"
-                                                                    className="h-7 text-xs"
-                                                                    value={metricValues.ftds ?? 0}
-                                                                    onChange={(e) => setMetricValues({ ...metricValues, ftds: parseInt(e.target.value) || 0 })}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <Label className="text-[10px]">CPA Qual</Label>
-                                                                <Input
-                                                                    type="number"
-                                                                    className="h-7 text-xs"
-                                                                    value={metricValues.qualifiedCpa ?? 0}
-                                                                    onChange={(e) => setMetricValues({ ...metricValues, qualifiedCpa: parseInt(e.target.value) || 0 })}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <Label className="text-[10px]">Depósito</Label>
-                                                                <Input
-                                                                    type="number"
-                                                                    step="0.01"
-                                                                    className="h-7 text-xs"
-                                                                    value={metricValues.depositAmount ?? 0}
-                                                                    onChange={(e) => setMetricValues({ ...metricValues, depositAmount: parseFloat(e.target.value) || 0 })}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <Label className="text-[10px]">Com. CPA</Label>
-                                                                <Input
-                                                                    type="number"
-                                                                    step="0.01"
-                                                                    className="h-7 text-xs"
-                                                                    value={metricValues.commissionCpa ?? 0}
-                                                                    onChange={(e) => setMetricValues({ ...metricValues, commissionCpa: parseFloat(e.target.value) || 0 })}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <Label className="text-[10px]">Com. REV</Label>
-                                                                <Input
-                                                                    type="number"
-                                                                    step="0.01"
-                                                                    className="h-7 text-xs"
-                                                                    value={metricValues.commissionRev ?? 0}
-                                                                    onChange={(e) => setMetricValues({ ...metricValues, commissionRev: parseFloat(e.target.value) || 0 })}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="grid grid-cols-3 gap-2 text-xs">
-                                                            <div>
-                                                                <p className="text-slate-500">Cadastros</p>
-                                                                <p className="font-medium">{metric.registrations}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-slate-500">FTDs</p>
-                                                                <p className="font-medium">{metric.ftds}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-slate-500">CPA Qual</p>
-                                                                <p className="font-medium">{metric.qualifiedCpa}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-slate-500">Depósito</p>
-                                                                <p className="font-medium">{formatCurrency(metric.depositAmount)}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-slate-500">Com. CPA</p>
-                                                                <p className="font-medium text-green-600">{formatCurrency(metric.commissionCpa)}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-slate-500">Com. REV</p>
-                                                                <p className="font-medium text-blue-600">{formatCurrency(metric.commissionRev)}</p>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
+                                                        return (
+                                                            <TableRow
+                                                                key={metric.id}
+                                                                onDoubleClick={() => !isEditing && startEditMetric(metric)}
+                                                                className={`${!isEditing ? "cursor-pointer hover:bg-slate-100 even:bg-slate-50" : "bg-blue-50"} border-b`}
+                                                                title={!isEditing ? "Clique duas vezes para editar" : ""}
+                                                            >
+                                                                <TableCell className="font-medium text-xs border-r p-2">
+                                                                    <div className="flex flex-col">
+                                                                        <span>{formatDate(metric.date)}</span>
+                                                                        <span className="text-slate-500 font-normal">{metric.campaign}</span>
+                                                                    </div>
+                                                                </TableCell>
+
+                                                                {/* Cadastros */}
+                                                                <TableCell className="text-right border-r p-2 font-mono">
+                                                                    {isEditing ? (
+                                                                        <Input
+                                                                            type="number"
+                                                                            className="h-8 w-16 ml-auto text-right bg-white"
+                                                                            value={metricValues.registrations ?? 0}
+                                                                            onChange={(e) => setMetricValues({ ...metricValues, registrations: parseInt(e.target.value) || 0 })}
+                                                                        />
+                                                                    ) : metric.registrations}
+                                                                </TableCell>
+
+                                                                {/* FTDs */}
+                                                                <TableCell className="text-right border-r p-2 font-mono">
+                                                                    {isEditing ? (
+                                                                        <Input
+                                                                            type="number"
+                                                                            className="h-8 w-16 ml-auto text-right bg-white"
+                                                                            value={metricValues.ftds ?? 0}
+                                                                            onChange={(e) => setMetricValues({ ...metricValues, ftds: parseInt(e.target.value) || 0 })}
+                                                                        />
+                                                                    ) : metric.ftds}
+                                                                </TableCell>
+
+                                                                {/* CPA Qual */}
+                                                                <TableCell className="text-right border-r p-2 font-mono">
+                                                                    {isEditing ? (
+                                                                        <Input
+                                                                            type="number"
+                                                                            className="h-8 w-16 ml-auto text-right bg-white"
+                                                                            value={metricValues.qualifiedCpa ?? 0}
+                                                                            onChange={(e) => setMetricValues({ ...metricValues, qualifiedCpa: parseInt(e.target.value) || 0 })}
+                                                                        />
+                                                                    ) : metric.qualifiedCpa}
+                                                                </TableCell>
+
+                                                                {/* Depósito */}
+                                                                <TableCell className="text-right border-r p-2 font-mono">
+                                                                    {isEditing ? (
+                                                                        <Input
+                                                                            type="number" step="0.01"
+                                                                            className="h-8 w-20 ml-auto text-right bg-white"
+                                                                            value={metricValues.depositAmount ?? 0}
+                                                                            onChange={(e) => setMetricValues({ ...metricValues, depositAmount: parseFloat(e.target.value) || 0 })}
+                                                                        />
+                                                                    ) : formatCurrency(metric.depositAmount)}
+                                                                </TableCell>
+
+                                                                {/* Conv% */}
+                                                                <TableCell className="text-right font-bold border-r p-2 font-mono">
+                                                                    {conversionRate}%
+                                                                </TableCell>
+
+                                                                {/* Com CPA */}
+                                                                <TableCell className="text-right">
+                                                                    {isEditing ? (
+                                                                        <Input
+                                                                            type="number" step="0.01"
+                                                                            className="h-8 w-20 ml-auto text-right"
+                                                                            value={metricValues.commissionCpa ?? 0}
+                                                                            onChange={(e) => setMetricValues({ ...metricValues, commissionCpa: parseFloat(e.target.value) || 0 })}
+                                                                        />
+                                                                    ) : formatCurrency(metric.commissionCpa)}
+                                                                </TableCell>
+
+                                                                {/* Com REV */}
+                                                                <TableCell className="text-right">
+                                                                    {isEditing ? (
+                                                                        <Input
+                                                                            type="number" step="0.01"
+                                                                            className="h-8 w-20 ml-auto text-right"
+                                                                            value={metricValues.commissionRev ?? 0}
+                                                                            onChange={(e) => setMetricValues({ ...metricValues, commissionRev: parseFloat(e.target.value) || 0 })}
+                                                                        />
+                                                                    ) : formatCurrency(metric.commissionRev)}
+                                                                </TableCell>
+
+                                                                {/* Total */}
+                                                                <TableCell className="text-right font-bold text-slate-900">
+                                                                    {formatCurrency(totalCommission)}
+                                                                </TableCell>
+
+                                                                <TableCell>
+                                                                    {isEditing ? (
+                                                                        <div className="flex gap-1 justify-end">
+                                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => handleSaveMetric(metric.id)}>
+                                                                                <Check className="h-4 w-4" />
+                                                                            </Button>
+                                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600" onClick={() => setEditingMetric(null)}>
+                                                                                <X className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="flex justify-end">
+                                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-slate-900" onClick={() => startEditMetric(metric)}>
+                                                                                <Pencil className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </div>
+                                                                    )}
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        );
+                                                    })}
+                                                </TableBody>
+                                            </Table>
                                         </div>
                                     )}
                                 </TabsContent>

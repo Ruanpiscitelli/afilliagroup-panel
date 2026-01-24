@@ -5,7 +5,8 @@ import {
     Bell,
     LogOut,
     ChevronLeft,
-    Link2
+    Link2,
+    LayoutDashboard
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { authApi, adminApi } from '@/services/api';
@@ -45,6 +46,12 @@ export function AdminLayout() {
     };
 
     const navItems = [
+        {
+            label: 'Dashboard',
+            href: '/admin/dashboard',
+            icon: LayoutDashboard,
+            badge: null,
+        },
         {
             label: 'Solicitações',
             href: '/admin/requests',

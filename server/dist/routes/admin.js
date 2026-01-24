@@ -1,28 +1,20 @@
-import { Router, Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Router } from 'express';
 import { z, ZodError } from 'zod';
 import bcrypt from 'bcryptjs';
-
 const router = Router();
-
 // Middleware to verify admin role
-const verifyAdmin = async (req: Request, res: Response, next: NextFunction) => {
-    const user = (req as any).user;
-
+const verifyAdmin = async (req, res, next) => {
+    const user = req.user;
     if (!user || user.role !== 'ADMIN') {
         return res.status(403).json({ error: 'Acesso negado. Apenas administradores podem acessar.' });
     }
-
     next();
 };
-
 // Apply admin middleware to all routes
 router.use(verifyAdmin);
-
 // GET /admin/requests - List pending affiliates
-router.get('/requests', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
-
+router.get('/requests', async (req, res) => {
+    const prisma = req.app.get('prisma');
     try {
         const pendingUsers = await prisma.user.findMany({
             where: {
@@ -42,18 +34,16 @@ router.get('/requests', async (req: Request, res: Response) => {
                 createdAt: 'desc',
             },
         });
-
         return res.json({ users: pendingUsers });
-    } catch (error) {
+    }
+    catch (error) {
         console.error('List pending error:', error);
         return res.status(500).json({ error: 'Erro ao listar solicitações' });
     }
 });
-
 // GET /admin/affiliates - List active affiliates
-router.get('/affiliates', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
-
+router.get('/affiliates', async (req, res) => {
+    const prisma = req.app.get('prisma');
     try {
         const activeUsers = await prisma.user.findMany({
             where: {
@@ -88,34 +78,30 @@ router.get('/affiliates', async (req: Request, res: Response) => {
                 name: 'asc',
             },
         });
-
         return res.json({
             users: activeUsers.map(u => ({
                 ...u,
                 cpaAmount: Number(u.cpaAmount),
             }))
         });
-    } catch (error) {
+    }
+    catch (error) {
         console.error('List affiliates error:', error);
         return res.status(500).json({ error: 'Erro ao listar afiliados' });
     }
 });
-
 // PUT /admin/users/:id/status - Update user status (approve, reject, ban)
 const updateStatusSchema = z.object({
     status: z.enum(['ACTIVE', 'REJECTED', 'BANNED']),
 });
-
-router.put('/users/:id/status', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
+router.put('/users/:id/status', async (req, res) => {
+    const prisma = req.app.get('prisma');
     const { id } = req.params;
-
     try {
         const body = updateStatusSchema.parse(req.body);
-
         const user = await prisma.user.update({
-            where: { id: id as string },
-            data: { status: body.status as any },
+            where: { id: id },
+            data: { status: body.status },
             select: {
                 id: true,
                 name: true,
@@ -123,12 +109,12 @@ router.put('/users/:id/status', async (req: Request, res: Response) => {
                 status: true,
             },
         });
-
         return res.json({
             message: `Status atualizado para ${body.status}`,
             user
         });
-    } catch (error) {
+    }
+    catch (error) {
         if (error instanceof ZodError) {
             return res.status(400).json({ error: 'Status inválido', details: error.issues });
         }
@@ -136,21 +122,17 @@ router.put('/users/:id/status', async (req: Request, res: Response) => {
         return res.status(500).json({ error: 'Erro ao atualizar status' });
     }
 });
-
 // PUT /admin/users/:id/cpa - Update user CPA amount
 const updateCpaSchema = z.object({
     cpaAmount: z.number().min(0),
 });
-
-router.put('/users/:id/cpa', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
+router.put('/users/:id/cpa', async (req, res) => {
+    const prisma = req.app.get('prisma');
     const { id } = req.params;
-
     try {
         const body = updateCpaSchema.parse(req.body);
-
         const user = await prisma.user.update({
-            where: { id: id as string },
+            where: { id: id },
             data: { cpaAmount: body.cpaAmount },
             select: {
                 id: true,
@@ -158,7 +140,6 @@ router.put('/users/:id/cpa', async (req: Request, res: Response) => {
                 cpaAmount: true,
             },
         });
-
         return res.json({
             message: 'CPA atualizado',
             user: {
@@ -166,7 +147,8 @@ router.put('/users/:id/cpa', async (req: Request, res: Response) => {
                 cpaAmount: Number(user.cpaAmount),
             }
         });
-    } catch (error) {
+    }
+    catch (error) {
         if (error instanceof ZodError) {
             return res.status(400).json({ error: 'Valor de CPA inválido', details: error.issues });
         }
@@ -174,7 +156,6 @@ router.put('/users/:id/cpa', async (req: Request, res: Response) => {
         return res.status(500).json({ error: 'Erro ao atualizar CPA' });
     }
 });
-
 // POST /admin/users - Create new affiliate (directly as ACTIVE)
 const createUserSchema = z.object({
     name: z.string().min(2),
@@ -186,24 +167,18 @@ const createUserSchema = z.object({
     cpaAmount: z.number().min(0).optional(),
     parentId: z.string().uuid().optional().nullable(),
 });
-
-router.post('/users', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
-
+router.post('/users', async (req, res) => {
+    const prisma = req.app.get('prisma');
     try {
         const body = createUserSchema.parse(req.body);
-
         // Check if email exists
         const existing = await prisma.user.findUnique({
             where: { email: body.email },
         });
-
         if (existing) {
             return res.status(400).json({ error: 'Email já cadastrado' });
         }
-
         const passwordHash = await bcrypt.hash(body.password, 10);
-
         const user = await prisma.user.create({
             data: {
                 name: body.name,
@@ -225,7 +200,6 @@ router.post('/users', async (req: Request, res: Response) => {
                 cpaAmount: true,
             },
         });
-
         return res.status(201).json({
             message: 'Afiliado criado com sucesso',
             user: {
@@ -233,7 +207,8 @@ router.post('/users', async (req: Request, res: Response) => {
                 cpaAmount: Number(user.cpaAmount),
             }
         });
-    } catch (error) {
+    }
+    catch (error) {
         if (error instanceof ZodError) {
             return res.status(400).json({ error: 'Dados inválidos', details: error.issues });
         }
@@ -241,11 +216,9 @@ router.post('/users', async (req: Request, res: Response) => {
         return res.status(500).json({ error: 'Erro ao criar afiliado' });
     }
 });
-
 // GET /admin/stats - Dashboard stats for admin
-router.get('/stats', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
-
+router.get('/stats', async (req, res) => {
+    const prisma = req.app.get('prisma');
     try {
         const [pending, active, banned, rejected] = await Promise.all([
             prisma.user.count({ where: { status: 'PENDING', role: 'AFFILIATE' } }),
@@ -253,7 +226,6 @@ router.get('/stats', async (req: Request, res: Response) => {
             prisma.user.count({ where: { status: 'BANNED', role: 'AFFILIATE' } }),
             prisma.user.count({ where: { status: 'REJECTED', role: 'AFFILIATE' } }),
         ]);
-
         return res.json({
             pending,
             active,
@@ -261,118 +233,19 @@ router.get('/stats', async (req: Request, res: Response) => {
             rejected,
             total: pending + active + banned + rejected,
         });
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Stats error:', error);
         return res.status(500).json({ error: 'Erro ao buscar estatísticas' });
     }
 });
-
-// GET /admin/performance/affiliates - Aggregated metrics per affiliate
-router.get('/performance/affiliates', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
-    const { startDate, endDate } = req.query;
-
-    try {
-        const where: any = {};
-        if (startDate && endDate) {
-            where.date = {
-                gte: new Date(startDate as string),
-                lte: new Date(endDate as string),
-            };
-        }
-
-        // Fetch ALL active affiliates first
-        const users = await prisma.user.findMany({
-            where: { role: 'AFFILIATE', status: { not: 'REJECTED' } }, // Include Active and Banned/Pending if desired vs just Active. User said "todos numeros que um admin tem que ter". Typically all active affiliates. I'll include ACTIVE and BANNED for historical, or just ACTIVE. Let's do ACTIVE and PENDING/BANNED? Usually just Active is what matters for "base de afiliados". Let's stick to ALL except REJECTED for now, or just ACTIVE. User said "todos os valores de todos afiliados". I'll fetch ALL non-rejected to be safe.
-            select: { id: true, name: true, email: true, status: true },
-            orderBy: { name: 'asc' }
-        });
-
-        // Group metrics by user for the period
-        const metrics = await prisma.dailyMetric.groupBy({
-            by: ['userId'],
-            where,
-            _sum: {
-                clicks: true,
-                registrations: true,
-                ftds: true,
-                qualifiedCpa: true,
-                depositAmount: true,
-                commissionCpa: true,
-                commissionRev: true,
-            },
-        });
-
-        // Merge data (Left Join)
-        const performance = users.map(user => {
-            const userMetrics = metrics.find(m => m.userId === user.id);
-            const stats = (userMetrics?._sum || {}) as any;
-
-            const deposits = Number(stats.depositAmount || 0);
-            const comCpa = Number(stats.commissionCpa || 0);
-            const comRev = Number(stats.commissionRev || 0);
-
-            const registrations = stats.registrations || 0;
-            const ftds = stats.ftds || 0;
-            const conv = registrations > 0 ? (ftds / registrations) * 100 : 0;
-
-            return {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                status: user.status,
-                metrics: {
-                    clicks: stats.clicks || 0,
-                    registrations,
-                    ftds,
-                    qualifiedCpa: stats.qualifiedCpa || 0,
-                    depositAmount: deposits,
-                    commissionCpa: comCpa,
-                    commissionRev: comRev,
-                    conversionRate: conv.toFixed(1),
-                    totalCommission: comCpa + comRev
-                }
-            };
-        });
-
-        // Calculate Global Totals
-        const totals = performance.reduce((acc, curr) => ({
-            registrations: acc.registrations + curr.metrics.registrations,
-            ftds: acc.ftds + curr.metrics.ftds,
-            qualifiedCpa: acc.qualifiedCpa + curr.metrics.qualifiedCpa,
-            depositAmount: acc.depositAmount + curr.metrics.depositAmount,
-            commissionCpa: acc.commissionCpa + curr.metrics.commissionCpa,
-            commissionRev: acc.commissionRev + curr.metrics.commissionRev,
-            totalCommission: acc.totalCommission + curr.metrics.totalCommission,
-        }), {
-            registrations: 0,
-            ftds: 0,
-            qualifiedCpa: 0,
-            depositAmount: 0,
-            commissionCpa: 0,
-            commissionRev: 0,
-            totalCommission: 0,
-        });
-
-        return res.json({
-            data: performance.sort((a, b) => b.metrics.totalCommission - a.metrics.totalCommission),
-            totals
-        });
-
-    } catch (error) {
-        console.error('Performance error:', error);
-        return res.status(500).json({ error: 'Erro ao buscar performance' });
-    }
-});
-
 // GET /admin/users/:id - Get affiliate details with metrics summary
-router.get('/users/:id', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
+router.get('/users/:id', async (req, res) => {
+    const prisma = req.app.get('prisma');
     const { id } = req.params;
-
     try {
         const user = await prisma.user.findUnique({
-            where: { id: id as string },
+            where: { id: id },
             select: {
                 id: true,
                 name: true,
@@ -401,11 +274,9 @@ router.get('/users/:id', async (req: Request, res: Response) => {
                 }
             },
         });
-
         if (!user) {
             return res.status(404).json({ error: 'Usuário não encontrado' });
         }
-
         const metricsAggregate = await prisma.dailyMetric.aggregate({
             where: { userId: String(id) },
             _sum: {
@@ -418,7 +289,6 @@ router.get('/users/:id', async (req: Request, res: Response) => {
                 commissionRev: true,
             },
         });
-
         return res.json({
             user: {
                 ...user,
@@ -434,12 +304,12 @@ router.get('/users/:id', async (req: Request, res: Response) => {
                 commissionRev: Number(metricsAggregate._sum?.commissionRev || 0),
             },
         });
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Get user error:', error);
         return res.status(500).json({ error: 'Erro ao buscar afiliado' });
     }
 });
-
 // PUT /admin/users/:id - Update affiliate data
 const updateUserSchema = z.object({
     name: z.string().min(2).optional(),
@@ -450,16 +320,13 @@ const updateUserSchema = z.object({
     cpaAmount: z.number().min(0).optional(),
     parentId: z.string().uuid().optional().nullable(),
 });
-
-router.put('/users/:id', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
+router.put('/users/:id', async (req, res) => {
+    const prisma = req.app.get('prisma');
     const { id } = req.params;
-
     try {
         const body = updateUserSchema.parse(req.body);
-
         const user = await prisma.user.update({
-            where: { id: id as string },
+            where: { id: id },
             data: body,
             select: {
                 id: true,
@@ -472,7 +339,6 @@ router.put('/users/:id', async (req: Request, res: Response) => {
                 parentId: true,
             },
         });
-
         return res.json({
             message: 'Afiliado atualizado',
             user: {
@@ -480,7 +346,8 @@ router.put('/users/:id', async (req: Request, res: Response) => {
                 cpaAmount: Number(user.cpaAmount),
             },
         });
-    } catch (error) {
+    }
+    catch (error) {
         if (error instanceof ZodError) {
             return res.status(400).json({ error: 'Dados inválidos', details: error.issues });
         }
@@ -488,22 +355,20 @@ router.put('/users/:id', async (req: Request, res: Response) => {
         return res.status(500).json({ error: 'Erro ao atualizar afiliado' });
     }
 });
-
 // GET /admin/users/:id/metrics - Get daily metrics for affiliate
-router.get('/users/:id/metrics', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
+router.get('/users/:id/metrics', async (req, res) => {
+    const prisma = req.app.get('prisma');
     const { id } = req.params;
     const { startDate, endDate } = req.query;
-
     try {
-        const where: any = { userId: id };
-
+        const where = { userId: id };
         if (startDate || endDate) {
             where.date = {};
-            if (startDate) where.date.gte = new Date(startDate as string);
-            if (endDate) where.date.lte = new Date(endDate as string);
+            if (startDate)
+                where.date.gte = new Date(startDate);
+            if (endDate)
+                where.date.lte = new Date(endDate);
         }
-
         const metrics = await prisma.dailyMetric.findMany({
             where,
             include: {
@@ -516,7 +381,6 @@ router.get('/users/:id/metrics', async (req: Request, res: Response) => {
             orderBy: { date: 'desc' },
             take: 30,
         });
-
         return res.json({
             metrics: metrics.map(m => ({
                 id: m.id,
@@ -531,12 +395,12 @@ router.get('/users/:id/metrics', async (req: Request, res: Response) => {
                 campaign: m.link?.campaign?.name || 'N/A',
             })),
         });
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Get metrics error:', error);
         return res.status(500).json({ error: 'Erro ao buscar métricas' });
     }
 });
-
 // PUT /admin/metrics/:id - Update a specific metric
 const updateMetricSchema = z.object({
     clicks: z.number().min(0).optional(),
@@ -547,19 +411,15 @@ const updateMetricSchema = z.object({
     commissionCpa: z.number().min(0).optional(),
     commissionRev: z.number().min(0).optional(),
 });
-
-router.put('/metrics/:id', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
+router.put('/metrics/:id', async (req, res) => {
+    const prisma = req.app.get('prisma');
     const { id } = req.params;
-
     try {
         const body = updateMetricSchema.parse(req.body);
-
         const metric = await prisma.dailyMetric.update({
             where: { id: Number(id) },
             data: body,
         });
-
         return res.json({
             message: 'Métrica atualizada',
             metric: {
@@ -569,7 +429,8 @@ router.put('/metrics/:id', async (req: Request, res: Response) => {
                 commissionRev: Number(metric.commissionRev),
             },
         });
-    } catch (error) {
+    }
+    catch (error) {
         if (error instanceof ZodError) {
             return res.status(400).json({ error: 'Dados inválidos', details: error.issues });
         }
@@ -577,44 +438,6 @@ router.put('/metrics/:id', async (req: Request, res: Response) => {
         return res.status(500).json({ error: 'Erro ao atualizar métrica' });
     }
 });
-
-// DELETE /admin/users/:id - Hard delete user and all related data
-router.delete('/users/:id', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
-    const { id } = req.params;
-
-    try {
-        // Use transaction to ensure detailed cleanup
-        await prisma.$transaction(async (tx) => {
-            // 1. Detach children (remove parentId)
-            await tx.user.updateMany({
-                where: { parentId: id },
-                data: { parentId: null },
-            });
-
-            // 2. Delete Metrics
-            await tx.dailyMetric.deleteMany({
-                where: { userId: id },
-            });
-
-            // 3. Delete Links
-            await tx.trackingLink.deleteMany({
-                where: { userId: id },
-            });
-
-            // 4. Delete User
-            await tx.user.delete({
-                where: { id },
-            });
-        });
-
-        return res.json({ message: 'Usuário excluído com sucesso' });
-    } catch (error) {
-        console.error('Delete user error:', error);
-        return res.status(500).json({ error: 'Erro ao excluir usuário' });
-    }
-});
-
 // POST /admin/metrics - Create manual metric
 const createMetricSchema = z.object({
     userId: z.string().uuid(),
@@ -628,14 +451,11 @@ const createMetricSchema = z.object({
     commissionCpa: z.number().min(0).optional().default(0),
     commissionRev: z.number().min(0).optional().default(0),
 });
-
-router.post('/metrics', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
-
+router.post('/metrics', async (req, res) => {
+    const prisma = req.app.get('prisma');
     try {
         const body = createMetricSchema.parse(req.body);
         const date = new Date(body.date);
-
         // Find or create TrackingLink for this user/campaign
         let link = await prisma.trackingLink.findFirst({
             where: {
@@ -643,13 +463,11 @@ router.post('/metrics', async (req: Request, res: Response) => {
                 campaignId: body.campaignId,
             },
         });
-
         if (!link) {
             const campaign = await prisma.campaign.findUnique({ where: { id: body.campaignId } });
             if (!campaign) {
                 return res.status(404).json({ error: 'Campanha não encontrada' });
             }
-
             const trackingCode = `manual_${body.userId.slice(0, 8)}_${body.campaignId}_${Date.now()}`;
             link = await prisma.trackingLink.create({
                 data: {
@@ -660,7 +478,6 @@ router.post('/metrics', async (req: Request, res: Response) => {
                 },
             });
         }
-
         // Check for duplicates
         const existing = await prisma.dailyMetric.findUnique({
             where: {
@@ -670,11 +487,9 @@ router.post('/metrics', async (req: Request, res: Response) => {
                 },
             },
         });
-
         if (existing) {
             return res.status(409).json({ error: 'Métrica já existe para esta data e campanha' });
         }
-
         const metric = await prisma.dailyMetric.create({
             data: {
                 date,
@@ -689,7 +504,6 @@ router.post('/metrics', async (req: Request, res: Response) => {
                 commissionRev: body.commissionRev,
             },
         });
-
         return res.status(201).json({
             message: 'Métrica criada',
             metric: {
@@ -699,7 +513,8 @@ router.post('/metrics', async (req: Request, res: Response) => {
                 commissionRev: Number(metric.commissionRev),
             },
         });
-    } catch (error) {
+    }
+    catch (error) {
         if (error instanceof ZodError) {
             return res.status(400).json({ error: 'Dados inválidos', details: error.issues });
         }
@@ -707,13 +522,10 @@ router.post('/metrics', async (req: Request, res: Response) => {
         return res.status(500).json({ error: 'Erro ao criar métrica' });
     }
 });
-
 // ============ LINK MANAGEMENT ROUTES ============
-
 // GET /admin/links - List all links with affiliate info
-router.get('/links', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
-
+router.get('/links', async (req, res) => {
+    const prisma = req.app.get('prisma');
     try {
         const links = await prisma.trackingLink.findMany({
             include: {
@@ -731,51 +543,45 @@ router.get('/links', async (req: Request, res: Response) => {
                 { createdAt: 'desc' },
             ],
         });
-
         return res.json({ links });
-    } catch (error) {
+    }
+    catch (error) {
         console.error('List links error:', error);
         return res.status(500).json({ error: 'Erro ao listar links' });
     }
 });
-
 // GET /admin/campaigns - List all campaigns
-router.get('/campaigns', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
-
+router.get('/campaigns', async (req, res) => {
+    const prisma = req.app.get('prisma');
     try {
         const campaigns = await prisma.campaign.findMany({
             orderBy: { name: 'asc' },
         });
-
         return res.json({ campaigns });
-    } catch (error) {
+    }
+    catch (error) {
         console.error('List campaigns error:', error);
         return res.status(500).json({ error: 'Erro ao listar campanhas' });
     }
 });
-
 // POST /admin/campaigns - Create a new campaign
 const createCampaignSchema = z.object({
     name: z.string().min(1),
     slug: z.string().min(1),
 });
-
-router.post('/campaigns', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
-
+router.post('/campaigns', async (req, res) => {
+    const prisma = req.app.get('prisma');
     try {
         const body = createCampaignSchema.parse(req.body);
-
         const campaign = await prisma.campaign.create({
             data: {
                 name: body.name,
                 slug: body.slug,
             },
         });
-
         return res.status(201).json({ message: 'Campanha criada', campaign });
-    } catch (error) {
+    }
+    catch (error) {
         if (error instanceof ZodError) {
             return res.status(400).json({ error: 'Dados inválidos', details: error.issues });
         }
@@ -783,48 +589,38 @@ router.post('/campaigns', async (req: Request, res: Response) => {
         return res.status(500).json({ error: 'Erro ao criar campanha' });
     }
 });
-
 // POST /admin/links - Create a new link for an affiliate
 const createLinkSchema = z.object({
     userId: z.string().uuid(),
     campaignId: z.number().int().positive(),
     platformUrl: z.string().url(),
 });
-
-router.post('/links', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
-
+router.post('/links', async (req, res) => {
+    const prisma = req.app.get('prisma');
     try {
         const body = createLinkSchema.parse(req.body);
-
         // Verify user exists and is an active affiliate
         const user = await prisma.user.findUnique({
             where: { id: body.userId },
         });
-
         if (!user) {
             return res.status(404).json({ error: 'Afiliado não encontrado' });
         }
-
         // Verify campaign exists
         const campaign = await prisma.campaign.findUnique({
             where: { id: body.campaignId },
         });
-
         if (!campaign) {
             return res.status(404).json({ error: 'Campanha não encontrada' });
         }
-
         // Generate tracking code
         const trackingCode = `registro_${Date.now().toString(36)}`;
-
         const link = await prisma.trackingLink.create({
             data: {
                 userId: body.userId,
                 campaignId: body.campaignId,
                 platformUrl: body.platformUrl,
                 trackingCode,
-
             },
             include: {
                 campaign: true,
@@ -833,9 +629,9 @@ router.post('/links', async (req: Request, res: Response) => {
                 },
             },
         });
-
         return res.status(201).json({ message: 'Link criado', link });
-    } catch (error) {
+    }
+    catch (error) {
         if (error instanceof ZodError) {
             return res.status(400).json({ error: 'Dados inválidos', details: error.issues });
         }
@@ -843,132 +639,24 @@ router.post('/links', async (req: Request, res: Response) => {
         return res.status(500).json({ error: 'Erro ao criar link' });
     }
 });
-
 // DELETE /admin/links/:id - Delete a link
-router.delete('/links/:id', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
+router.delete('/links/:id', async (req, res) => {
+    const prisma = req.app.get('prisma');
     const { id } = req.params;
-
     try {
         // First delete related metrics
         await prisma.dailyMetric.deleteMany({
-            where: { linkId: parseInt(id as string) },
+            where: { linkId: parseInt(id) },
         });
-
         // Then delete the link
         await prisma.trackingLink.delete({
-            where: { id: parseInt(id as string) },
+            where: { id: parseInt(id) },
         });
-
         return res.json({ message: 'Link deletado' });
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Delete link error:', error);
         return res.status(500).json({ error: 'Erro ao deletar link' });
     }
 });
-
-// GET /admin/dashboard-metrics - Aggregated metrics for admin dashboard
-router.get('/dashboard-metrics', async (req: Request, res: Response) => {
-    const prisma = req.app.get('prisma') as PrismaClient;
-    const { startDate, endDate, affiliateId } = req.query;
-
-    try {
-        const where: any = {};
-
-        // Date Filter
-        if (startDate || endDate) {
-            where.date = {};
-            if (startDate) where.date.gte = new Date(startDate as string);
-            if (endDate) where.date.lte = new Date(endDate as string);
-        }
-
-        // Affiliate Filter
-        if (affiliateId) {
-            where.userId = affiliateId as string;
-        }
-
-        // 1. Get Global Aggregates (Cards)
-        const globalAggregate = await prisma.dailyMetric.aggregate({
-            where,
-            _sum: {
-                registrations: true,
-                ftds: true,
-                qualifiedCpa: true,
-                depositAmount: true,
-                commissionCpa: true,
-                commissionRev: true,
-            },
-        });
-
-        // 2. Get Aggregates Per Affiliate (Table)
-        const affiliateAggregates = await prisma.dailyMetric.groupBy({
-            by: ['userId'],
-            where,
-            _sum: {
-                registrations: true,
-                ftds: true,
-                qualifiedCpa: true,
-                depositAmount: true,
-                commissionCpa: true,
-                commissionRev: true,
-            },
-        });
-
-        // 3. Get User Details manually (since groupBy doesn't support relation inclusion directly in a clean way in all Prisma versions, 
-        // usually we query users separately or use findingMany. Let's map IDs to Names)
-        const userIds = affiliateAggregates.map(a => a.userId);
-        const users = await prisma.user.findMany({
-            where: { id: { in: userIds } },
-            select: { id: true, name: true },
-        });
-
-        const userMap = new Map(users.map(u => [u.id, u.name]));
-
-        // Format Table Data
-        const tableData = affiliateAggregates.map(agg => {
-            const commissionCpa = Number(agg._sum.commissionCpa || 0);
-            const commissionRev = Number(agg._sum.commissionRev || 0);
-            const totalCommission = commissionCpa + commissionRev;
-            const registrations = agg._sum.registrations || 0;
-            const ftds = agg._sum.ftds || 0;
-            const conversionRate = registrations > 0
-                ? ((ftds / registrations) * 100).toFixed(1) + '%'
-                : '0%';
-
-            return {
-                userId: agg.userId,
-                name: userMap.get(agg.userId) || 'Desconhecido',
-                registrations,
-                ftds,
-                qualifiedCpa: agg._sum.qualifiedCpa || 0,
-                depositAmount: Number(agg._sum.depositAmount || 0),
-                conversionRate,
-                commissionCpa,
-                commissionRev,
-                totalCommission,
-            };
-        });
-
-        // Sort by Total Commission desc
-        tableData.sort((a, b) => b.totalCommission - a.totalCommission);
-
-        return res.json({
-            summary: {
-                registrations: globalAggregate._sum.registrations || 0,
-                ftds: globalAggregate._sum.ftds || 0,
-                qualifiedCpa: globalAggregate._sum.qualifiedCpa || 0,
-                depositAmount: Number(globalAggregate._sum.depositAmount || 0),
-                commissionCpa: Number(globalAggregate._sum.commissionCpa || 0),
-                commissionRev: Number(globalAggregate._sum.commissionRev || 0),
-                total: Number(globalAggregate._sum.commissionCpa || 0) + Number(globalAggregate._sum.commissionRev || 0),
-            },
-            tableData,
-        });
-
-    } catch (error) {
-        console.error('Dashboard metrics error:', error);
-        return res.status(500).json({ error: 'Erro ao buscar métricas do dashboard' });
-    }
-});
-
 export default router;

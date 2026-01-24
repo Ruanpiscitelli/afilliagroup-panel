@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
+    baseURL: import.meta.env.VITE_API_URL || '/api',
     withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
@@ -45,6 +45,8 @@ export const metricsApi = {
 // Admin
 export const adminApi = {
     getStats: () => api.get('/admin/stats'),
+    getPerformanceAffiliates: (startDate?: string, endDate?: string) =>
+        api.get('/admin/performance/affiliates', { params: { startDate, endDate } }),
     getRequests: () => api.get('/admin/requests'),
     getAffiliates: () => api.get('/admin/affiliates'),
     getUser: (userId: string) => api.get(`/admin/users/${userId}`),
@@ -82,6 +84,7 @@ export const adminApi = {
         projectedFtds?: string;
         cpaAmount?: number;
     }) => api.post('/admin/users', data),
+    deleteUser: (userId: string) => api.delete(`/admin/users/${userId}`),
     // Links management
     getLinks: () => api.get('/admin/links'),
     createLink: (data: {

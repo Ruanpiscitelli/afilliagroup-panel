@@ -11,6 +11,7 @@ import { SettingsPage } from '@/pages/settings/SettingsPage';
 import { AdminRequestsPage } from '@/pages/admin/RequestsPage';
 import { AdminAffiliatesPage } from '@/pages/admin/AffiliatesPage';
 import { LinksManagementPage } from '@/pages/admin/LinksManagementPage';
+import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,7 +42,8 @@ function App() {
 
               {/* Admin routes */}
               <Route path="/admin" element={<AdminLayout />}>
-                <Route index element={<Navigate to="/admin/requests" replace />} />
+                <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                <Route path="dashboard" element={<AdminDashboardPage />} />
                 <Route path="requests" element={<AdminRequestsPage />} />
                 <Route path="affiliates" element={<AdminAffiliatesPage />} />
                 <Route path="links" element={<LinksManagementPage />} />
