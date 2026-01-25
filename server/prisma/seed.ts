@@ -164,7 +164,6 @@ async function main() {
         console.log('📢 Campaign created:', campaign.name);
     }
 
-    /*
     // Create TrackingLinks and Metrics for active affiliates
     const activeUsers = await prisma.user.findMany({
         where: { status: Status.ACTIVE, role: Role.AFFILIATE },
@@ -173,10 +172,18 @@ async function main() {
 
     for (const user of activeUsers) {
         for (const campaign of allCampaigns.slice(0, 2)) {
-            const link = await prisma.trackingLink.create({
+            // Check if link already exists
+            const existingLink = await prisma.trackingLink.findFirst({
+                where: {
+                    userId: user.id,
+                    campaignId: campaign.id,
+                },
+            });
+
+            const link = existingLink || await prisma.trackingLink.create({
                 data: {
                     platformUrl: `https://bet.affilia.group/${campaign.slug}`,
-                    trackingCode: `${campaign.slug}_${user.id.slice(0, 8)}`,
+                    trackingCode: `${campaign.slug}_${user.id.slice(0, 8)}_${Date.now()}`,
                     userId: user.id,
                     campaignId: campaign.id,
                 },
@@ -189,29 +196,40 @@ async function main() {
                 date.setDate(date.getDate() - i);
                 date.setHours(0, 0, 0, 0);
 
-                const registrations = Math.floor(Math.random() * 10);
-                const ftds = Math.floor(registrations * 0.5);
-                const qualifiedCpa = Math.floor(ftds * 0.7);
-
-                await prisma.dailyMetric.create({
-                    data: {
-                        date,
-                        clicks: Math.floor(Math.random() * 50) + 10,
-                        registrations,
-                        ftds,
-                        qualifiedCpa,
-                        depositAmount: ftds * (Math.random() * 100 + 50),
-                        commissionCpa: qualifiedCpa * Number(user.cpaAmount),
-                        commissionRev: ftds * (Math.random() * 20 + 5),
-                        linkId: link.id,
-                        userId: user.id,
+                // Check if metric already exists for this link/date
+                const existingMetric = await prisma.dailyMetric.findUnique({
+                    where: {
+                        linkId_date: {
+                            linkId: link.id,
+                            date,
+                        },
                     },
                 });
+
+                if (!existingMetric) {
+                    const registrations = Math.floor(Math.random() * 10);
+                    const ftds = Math.floor(registrations * 0.5);
+                    const qualifiedCpa = Math.floor(ftds * 0.7);
+
+                    await prisma.dailyMetric.create({
+                        data: {
+                            date,
+                            clicks: Math.floor(Math.random() * 50) + 10,
+                            registrations,
+                            ftds,
+                            qualifiedCpa,
+                            depositAmount: ftds * (Math.random() * 100 + 50),
+                            commissionCpa: qualifiedCpa * Number(user.cpaAmount),
+                            commissionRev: ftds * (Math.random() * 20 + 5),
+                            linkId: link.id,
+                            userId: user.id,
+                        },
+                    });
+                }
             }
             console.log(`📊 Metrics created for ${user.name} - ${campaign.name}`);
         }
     }
-    */
 
     console.log('✨ Seed completed!');
 }
