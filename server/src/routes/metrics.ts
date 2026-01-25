@@ -67,6 +67,7 @@ router.get('/dashboard', async (req: Request, res: Response) => {
     try {
         const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30));
         const end = endDate ? new Date(endDate as string) : new Date();
+        end.setHours(23, 59, 59, 999);
 
         const filterIds = await getAllowedUserIds(prisma, user, affiliateId as string);
 
@@ -145,6 +146,7 @@ router.get('/top-campaigns', async (req: Request, res: Response) => {
     try {
         const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30));
         const end = endDate ? new Date(endDate as string) : new Date();
+        end.setHours(23, 59, 59, 999);
 
         const filterIds = await getAllowedUserIds(prisma, user, affiliateId as string);
 
@@ -229,6 +231,7 @@ router.get('/by-campaign', async (req: Request, res: Response) => {
     try {
         const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30));
         const end = endDate ? new Date(endDate as string) : new Date();
+        end.setHours(23, 59, 59, 999);
 
         const filterIds = await getAllowedUserIds(prisma, user, affiliateId as string);
 
@@ -293,6 +296,7 @@ router.get('/time-series', async (req: Request, res: Response) => {
     try {
         const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30));
         const end = endDate ? new Date(endDate as string) : new Date();
+        end.setHours(23, 59, 59, 999);
 
         const filterIds = await getAllowedUserIds(prisma, user, affiliateId as string);
 

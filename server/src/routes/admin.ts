@@ -275,9 +275,13 @@ router.get('/performance/affiliates', async (req: Request, res: Response) => {
     try {
         const where: any = {};
         if (startDate && endDate) {
+            const start = new Date(startDate as string);
+            const end = new Date(endDate as string);
+            // Set end date to end of day to include all records from that day
+            end.setHours(23, 59, 59, 999);
             where.date = {
-                gte: new Date(startDate as string),
-                lte: new Date(endDate as string),
+                gte: start,
+                lte: end,
             };
         }
 
@@ -501,7 +505,11 @@ router.get('/users/:id/metrics', async (req: Request, res: Response) => {
         if (startDate || endDate) {
             where.date = {};
             if (startDate) where.date.gte = new Date(startDate as string);
-            if (endDate) where.date.lte = new Date(endDate as string);
+            if (endDate) {
+                const end = new Date(endDate as string);
+                end.setHours(23, 59, 59, 999);
+                where.date.lte = end;
+            }
         }
 
         const metrics = await prisma.dailyMetric.findMany({
@@ -879,7 +887,11 @@ router.get('/dashboard-metrics', async (req: Request, res: Response) => {
         if (startDate || endDate) {
             where.date = {};
             if (startDate) where.date.gte = new Date(startDate as string);
-            if (endDate) where.date.lte = new Date(endDate as string);
+            if (endDate) {
+                const end = new Date(endDate as string);
+                end.setHours(23, 59, 59, 999);
+                where.date.lte = end;
+            }
         }
 
         // Affiliate Filter
