@@ -589,7 +589,7 @@ router.put('/metrics/:id', async (req: Request, res: Response) => {
 // DELETE /admin/users/:id - Hard delete user and all related data
 router.delete('/users/:id', async (req: Request, res: Response) => {
     const prisma = req.app.get('prisma') as PrismaClient;
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     try {
         // Use transaction to ensure detailed cleanup
