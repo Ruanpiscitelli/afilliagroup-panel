@@ -77,6 +77,7 @@ export function LoginPage() {
                             <Input
                                 id="email"
                                 type="email"
+                                autoComplete="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="bg-slate-50 border-slate-200 focus:bg-white transition-colors h-11"
@@ -91,6 +92,7 @@ export function LoginPage() {
                                 <Input
                                     id="password"
                                     type={showPassword ? 'text' : 'password'}
+                                    autoComplete="current-password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     className="pr-10 bg-slate-50 border-slate-200 focus:bg-white transition-colors h-11"

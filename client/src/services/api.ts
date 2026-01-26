@@ -55,9 +55,9 @@ export const adminApi = {
         email?: string;
         whatsapp?: string;
         instagram?: string;
-        marketNiche?: string;
         projectedFtds?: string;
         cpaAmount?: number;
+        parentId?: string | null;
     }) => api.put(`/admin/users/${userId}`, data),
     getMetrics: (userId: string) => api.get(`/admin/users/${userId}/metrics`),
     updateMetric: (metricId: string, data: {
@@ -80,11 +80,13 @@ export const adminApi = {
         password: string;
         whatsapp?: string;
         instagram?: string;
-        marketNiche?: string;
         projectedFtds?: string;
         cpaAmount?: number;
+        parentId?: string | null;
     }) => api.post('/admin/users', data),
     deleteUser: (userId: string) => api.delete(`/admin/users/${userId}`),
+    updatePassword: (userId: string, password: string) =>
+        api.put(`/admin/users/${userId}/password`, { password }),
     // Links management
     getLinks: () => api.get('/admin/links'),
     createLink: (data: {

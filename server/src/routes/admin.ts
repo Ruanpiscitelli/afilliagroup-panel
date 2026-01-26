@@ -242,6 +242,43 @@ router.post('/users', async (req: Request, res: Response) => {
     }
 });
 
+// PUT /admin/users/:id/password - Update user password
+const updatePasswordSchema = z.object({
+    password: z.string().min(6),
+});
+
+router.put('/users/:id/password', async (req: Request, res: Response) => {
+    const prisma = req.app.get('prisma') as PrismaClient;
+    const { id } = req.params;
+
+    try {
+        const body = updatePasswordSchema.parse(req.body);
+
+        const passwordHash = await bcrypt.hash(body.password, 10);
+
+        const user = await prisma.user.update({
+            where: { id: id as string },
+            data: { passwordHash },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+            },
+        });
+
+        return res.json({
+            message: 'Senha atualizada com sucesso',
+            user,
+        });
+    } catch (error) {
+        if (error instanceof ZodError) {
+            return res.status(400).json({ error: 'Senha inválida', details: error.issues });
+        }
+        console.error('Update password error:', error);
+        return res.status(500).json({ error: 'Erro ao atualizar senha' });
+    }
+});
+
 // GET /admin/stats - Dashboard stats for admin
 router.get('/stats', async (req: Request, res: Response) => {
     const prisma = req.app.get('prisma') as PrismaClient;

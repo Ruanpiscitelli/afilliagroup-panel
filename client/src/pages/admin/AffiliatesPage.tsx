@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Ban, Check, X, ChevronRight, Save, Maximize2, Minimize2, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Ban, Check, X, ChevronRight, Save, Maximize2, Minimize2, Trash2, Eye, EyeOff } from 'lucide-react';
 import { adminApi } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,6 +73,9 @@ export function AdminAffiliatesPage() {
     const [editingMetric, setEditingMetric] = useState<string | null>(null);
     const [metricValues, setMetricValues] = useState<Partial<Metric>>({});
     const [userData, setUserData] = useState<Partial<Affiliate>>({});
+    const [showPassword, setShowPassword] = useState(false);
+    const [newUserPassword, setNewUserPassword] = useState('');
+    const [showNewUserPassword, setShowNewUserPassword] = useState(false);
     const [newUser, setNewUser] = useState({
         name: '',
         email: '',
@@ -212,6 +215,15 @@ export function AdminAffiliatesPage() {
         },
     });
 
+    const updatePasswordMutation = useMutation({
+        mutationFn: ({ userId, password }: { userId: string; password: string }) =>
+            adminApi.updatePassword(userId, password),
+        onSuccess: () => {
+            setNewUserPassword('');
+            alert('Senha atualizada com sucesso!');
+        },
+    });
+
     const handleCreateUser = (e: React.FormEvent) => {
         e.preventDefault();
         createUserMutation.mutate(newUser);
@@ -237,6 +249,14 @@ export function AdminAffiliatesPage() {
 
     const handleSaveMetric = (metricId: string) => {
         updateMetricMutation.mutate({ metricId, data: metricValues });
+    };
+
+    const handleUpdatePassword = () => {
+        if (!selectedAffiliate || !newUserPassword || newUserPassword.length < 6) {
+            alert('A senha deve ter no mínimo 6 caracteres');
+            return;
+        }
+        updatePasswordMutation.mutate({ userId: selectedAffiliate, password: newUserPassword });
     };
 
 
@@ -291,19 +311,21 @@ export function AdminAffiliatesPage() {
                                 <div className="grid gap-4 py-4">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label htmlFor="name">Nome *</Label>
+                                            <Label htmlFor="new-user-name">Nome *</Label>
                                             <Input
-                                                id="name"
+                                                id="new-user-name"
+                                                autoComplete="name"
                                                 value={newUser.name}
                                                 onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
                                                 required
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label htmlFor="email">Email *</Label>
+                                            <Label htmlFor="new-user-email">Email *</Label>
                                             <Input
-                                                id="email"
+                                                id="new-user-email"
                                                 type="email"
+                                                autoComplete="email"
                                                 value={newUser.email}
                                                 onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                                                 required
@@ -311,62 +333,77 @@ export function AdminAffiliatesPage() {
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="password">Senha *</Label>
-                                        <Input
-                                            id="password"
-                                            type="password"
-                                            value={newUser.password}
-                                            onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                                            required
-                                            minLength={6}
-                                        />
+                                        <Label htmlFor="new-user-password">Senha *</Label>
+                                        <div className="relative">
+                                            <Input
+                                                id="new-user-password"
+                                                type={showPassword ? 'text' : 'password'}
+                                                autoComplete="new-password"
+                                                value={newUser.password}
+                                                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                                                required
+                                                minLength={6}
+                                                className="pr-10"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                            >
+                                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label htmlFor="whatsapp">WhatsApp</Label>
+                                            <Label htmlFor="new-user-whatsapp">WhatsApp</Label>
                                             <Input
-                                                id="whatsapp"
+                                                id="new-user-whatsapp"
+                                                autoComplete="tel"
                                                 value={newUser.whatsapp}
                                                 onChange={(e) => setNewUser({ ...newUser, whatsapp: e.target.value })}
                                                 placeholder="+55 11 99999-9999"
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label htmlFor="instagram">Instagram</Label>
+                                            <Label htmlFor="new-user-instagram">Instagram</Label>
                                             <Input
-                                                id="instagram"
+                                                id="new-user-instagram"
                                                 value={newUser.instagram}
                                                 onChange={(e) => setNewUser({ ...newUser, instagram: e.target.value })}
                                                 placeholder="@username"
                                             />
                                         </div>
                                     </div>
-                                    <Input
-                                        id="cpa"
-                                        type="number"
-                                        step="0.01"
-                                        value={newUser.cpaAmount}
-                                        onChange={(e) => setNewUser({ ...newUser, cpaAmount: parseFloat(e.target.value) || 0 })}
-                                    />
-                                </div>
-                                <div className="space-y-2 col-span-2">
-                                    <Label htmlFor="parent">Conta Principal (Opcional - Sub-conta)</Label>
-                                    <Select
-                                        value={newUser.parentId}
-                                        onValueChange={(val) => setNewUser({ ...newUser, parentId: val === 'none' ? '' : val })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Selecione uma conta principal..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">Nenhuma (Conta Independente)</SelectItem>
-                                            {affiliates.map((aff) => (
-                                                <SelectItem key={aff.id} value={aff.id}>
-                                                    {aff.name} ({aff.email})
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="new-user-cpa">CPA Fixo (R$)</Label>
+                                        <Input
+                                            id="new-user-cpa"
+                                            type="number"
+                                            step="0.01"
+                                            value={newUser.cpaAmount}
+                                            onChange={(e) => setNewUser({ ...newUser, cpaAmount: parseFloat(e.target.value) || 0 })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2 col-span-2">
+                                        <Label>Conta Principal (Opcional - Sub-conta)</Label>
+                                        <Select
+                                            value={newUser.parentId}
+                                            onValueChange={(val) => setNewUser({ ...newUser, parentId: val === 'none' ? '' : val })}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Selecione uma conta principal..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">Nenhuma (Conta Independente)</SelectItem>
+                                                {affiliates.map((aff) => (
+                                                    <SelectItem key={aff.id} value={aff.id}>
+                                                        {aff.name} ({aff.email})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                                 <DialogFooter>
                                     <Button type="submit" disabled={createUserMutation.isPending}>
@@ -503,38 +540,47 @@ export function AdminAffiliatesPage() {
                                     {/* Editable Fields */}
                                     <div className="space-y-3 pt-4">
                                         <div className="space-y-1.5">
-                                            <Label>Nome</Label>
+                                            <Label htmlFor="edit-name">Nome</Label>
                                             <Input
+                                                id="edit-name"
+                                                autoComplete="name"
                                                 defaultValue={affiliateDetails?.user?.name}
                                                 onChange={(e) => setUserData({ ...userData, name: e.target.value })}
                                             />
                                         </div>
                                         <div className="space-y-1.5">
-                                            <Label>Email</Label>
+                                            <Label htmlFor="edit-email">Email</Label>
                                             <Input
+                                                id="edit-email"
+                                                type="email"
+                                                autoComplete="email"
                                                 defaultValue={affiliateDetails?.user?.email}
                                                 onChange={(e) => setUserData({ ...userData, email: e.target.value })}
                                             />
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="space-y-1.5">
-                                                <Label>WhatsApp</Label>
+                                                <Label htmlFor="edit-whatsapp">WhatsApp</Label>
                                                 <Input
+                                                    id="edit-whatsapp"
+                                                    autoComplete="tel"
                                                     defaultValue={affiliateDetails?.user?.whatsapp || ''}
                                                     onChange={(e) => setUserData({ ...userData, whatsapp: e.target.value })}
                                                 />
                                             </div>
                                             <div className="space-y-1.5">
-                                                <Label>Instagram</Label>
+                                                <Label htmlFor="edit-instagram">Instagram</Label>
                                                 <Input
+                                                    id="edit-instagram"
                                                     defaultValue={affiliateDetails?.user?.instagram || ''}
                                                     onChange={(e) => setUserData({ ...userData, instagram: e.target.value })}
                                                 />
                                             </div>
                                         </div>
                                         <div className="space-y-1.5">
-                                            <Label>CPA Fixo (R$)</Label>
+                                            <Label htmlFor="edit-cpa">CPA Fixo (R$)</Label>
                                             <Input
+                                                id="edit-cpa"
                                                 type="number"
                                                 step="0.01"
                                                 defaultValue={affiliateDetails?.user?.cpaAmount}
@@ -561,6 +607,41 @@ export function AdminAffiliatesPage() {
                                                         ))}
                                                 </SelectContent>
                                             </Select>
+                                        </div>
+                                    </div>
+
+                                    <div className="border-t pt-4 mt-4">
+                                        <h3 className="text-sm font-semibold text-slate-900 mb-3">Alterar Senha</h3>
+                                        <div className="space-y-3">
+                                            <div className="space-y-1.5">
+                                                <Label htmlFor="new-password">Nova Senha</Label>
+                                                <div className="relative">
+                                                    <Input
+                                                        id="new-password"
+                                                        type={showNewUserPassword ? 'text' : 'password'}
+                                                        autoComplete="new-password"
+                                                        value={newUserPassword}
+                                                        onChange={(e) => setNewUserPassword(e.target.value)}
+                                                        placeholder="Digite a nova senha (mín. 6 caracteres)"
+                                                        className="pr-10"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowNewUserPassword(!showNewUserPassword)}
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                                    >
+                                                        {showNewUserPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <Button
+                                                onClick={handleUpdatePassword}
+                                                disabled={!newUserPassword || newUserPassword.length < 6 || updatePasswordMutation.isPending}
+                                                variant="outline"
+                                                className="w-full"
+                                            >
+                                                {updatePasswordMutation.isPending ? 'Atualizando...' : 'Atualizar Senha'}
+                                            </Button>
                                         </div>
                                     </div>
 
