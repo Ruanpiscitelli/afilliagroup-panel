@@ -61,6 +61,7 @@ export const adminApi = {
     }) => api.put(`/admin/users/${userId}`, data),
     getMetrics: (userId: string) => api.get(`/admin/users/${userId}/metrics`),
     updateMetric: (metricId: string, data: {
+        date?: string;
         clicks?: number;
         registrations?: number;
         ftds?: number;

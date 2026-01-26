@@ -584,6 +584,7 @@ router.get('/users/:id/metrics', async (req: Request, res: Response) => {
 
 // PUT /admin/metrics/:id - Update a specific metric
 const updateMetricSchema = z.object({
+    date: z.string().optional(), // YYYY-MM-DD format
     clicks: z.number().min(0).optional(),
     registrations: z.number().min(0).optional(),
     ftds: z.number().min(0).optional(),
@@ -600,9 +601,41 @@ router.put('/metrics/:id', async (req: Request, res: Response) => {
     try {
         const body = updateMetricSchema.parse(req.body);
 
+        // If date is being updated, check for uniqueness constraint
+        if (body.date) {
+            const existingMetric = await prisma.dailyMetric.findUnique({
+                where: { id: Number(id) },
+                select: { linkId: true, date: true },
+            });
+
+            if (!existingMetric) {
+                return res.status(404).json({ error: 'Métrica não encontrada' });
+            }
+
+            // Check if another metric already exists with the same linkId and new date
+            const duplicate = await prisma.dailyMetric.findFirst({
+                where: {
+                    linkId: existingMetric.linkId,
+                    date: new Date(body.date),
+                    id: { not: Number(id) }, // Exclude current metric from check
+                },
+            });
+
+            if (duplicate) {
+                return res.status(400).json({
+                    error: 'Já existe uma métrica para esta data e campanha combinadas'
+                });
+            }
+        }
+
+        const updateData: any = { ...body };
+        if (body.date) {
+            updateData.date = new Date(body.date);
+        }
+
         const metric = await prisma.dailyMetric.update({
             where: { id: Number(id) },
-            data: body,
+            data: updateData,
         });
 
         return res.json({
@@ -612,6 +645,7 @@ router.put('/metrics/:id', async (req: Request, res: Response) => {
                 depositAmount: Number(metric.depositAmount),
                 commissionCpa: Number(metric.commissionCpa),
                 commissionRev: Number(metric.commissionRev),
+                date: metric.date.toISOString(),
             },
         });
     } catch (error) {

@@ -192,6 +192,15 @@ export function AdminAffiliatesPage() {
                 cpaAmount: 0,
                 parentId: '',
             });
+            alert('Afiliado criado com sucesso!');
+        },
+        onError: (error: any) => {
+            console.error('Erro ao criar afiliado:', error);
+            console.error('Status:', error.response?.status);
+            console.error('Response data:', error.response?.data);
+            console.error('Request data:', newUser);
+            const errorMessage = error.response?.data?.error || error.response?.data?.details?.[0]?.message || error.message || 'Erro ao criar afiliado';
+            alert(`Erro: ${errorMessage}`);
         },
     });
 
@@ -226,7 +235,13 @@ export function AdminAffiliatesPage() {
 
     const handleCreateUser = (e: React.FormEvent) => {
         e.preventDefault();
-        createUserMutation.mutate(newUser);
+        // Converter parentId vazio em null para validação do servidor
+        const dataToSend = {
+            ...newUser,
+            parentId: newUser.parentId || null,
+        };
+        console.log('handleSubmit chamado', dataToSend);
+        createUserMutation.mutate(dataToSend);
     };
 
     const handleSaveUser = () => {
@@ -263,7 +278,10 @@ export function AdminAffiliatesPage() {
 
     const startEditMetric = (metric: Metric) => {
         setEditingMetric(metric.id);
+        // Format date for input (YYYY-MM-DD)
+        const formattedDate = new Date(metric.date).toISOString().split('T')[0];
         setMetricValues({
+            date: formattedDate,
             registrations: metric.registrations,
             ftds: metric.ftds,
             qualifiedCpa: metric.qualifiedCpa,
@@ -405,7 +423,10 @@ export function AdminAffiliatesPage() {
                                         </Select>
                                     </div>
                                 </div>
-                                <DialogFooter>
+                                <DialogFooter className="gap-2">
+                                    <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
+                                        Cancelar
+                                    </Button>
                                     <Button type="submit" disabled={createUserMutation.isPending}>
                                         {createUserMutation.isPending ? 'Criando...' : 'Criar Afiliado'}
                                     </Button>
@@ -731,7 +752,7 @@ export function AdminAffiliatesPage() {
                                                                 <Input type="number" className="h-8" value={newMetric.clicks} onChange={(e) => setNewMetric({ ...newMetric, clicks: parseInt(e.target.value) || 0 })} />
                                                             </div>
                                                             <div className="space-y-1">
-                                                                <Label className="text-xs">Uds</Label>
+                                                                <Label className="text-xs">Cadastros</Label>
                                                                 <Input type="number" className="h-8" value={newMetric.registrations} onChange={(e) => setNewMetric({ ...newMetric, registrations: parseInt(e.target.value) || 0 })} />
                                                             </div>
                                                             <div className="space-y-1">
@@ -739,22 +760,22 @@ export function AdminAffiliatesPage() {
                                                                 <Input type="number" className="h-8" value={newMetric.ftds} onChange={(e) => setNewMetric({ ...newMetric, ftds: parseInt(e.target.value) || 0 })} />
                                                             </div>
                                                             <div className="space-y-1">
-                                                                <Label className="text-xs">CPA Q</Label>
+                                                                <Label className="text-xs" title="CPA Qualificado">CPA Qual.</Label>
                                                                 <Input type="number" className="h-8" value={newMetric.qualifiedCpa} onChange={(e) => setNewMetric({ ...newMetric, qualifiedCpa: parseInt(e.target.value) || 0 })} />
                                                             </div>
                                                             <div className="space-y-1">
-                                                                <Label className="text-xs">Depósito</Label>
-                                                                <Input type="number" step="0.01" className="h-8" value={newMetric.depositAmount} onChange={(e) => setNewMetric({ ...newMetric, depositAmount: parseFloat(e.target.value) || 0 })} />
+                                                                <Label className="text-xs">Valor Depósito (R$)</Label>
+                                                                <Input type="number" step="0.01" className="h-8" value={newMetric.depositAmount} onChange={(e) => setNewMetric({ ...newMetric, depositAmount: parseFloat(e.target.value) || 0 })} placeholder="0.00" />
                                                             </div>
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-3">
                                                             <div className="space-y-1">
-                                                                <Label className="text-xs">Comissão CPA</Label>
-                                                                <Input type="number" step="0.01" className="h-8" value={newMetric.commissionCpa} onChange={(e) => setNewMetric({ ...newMetric, commissionCpa: parseFloat(e.target.value) || 0 })} />
+                                                                <Label className="text-xs">Comissão CPA (R$)</Label>
+                                                                <Input type="number" step="0.01" className="h-8" value={newMetric.commissionCpa} onChange={(e) => setNewMetric({ ...newMetric, commissionCpa: parseFloat(e.target.value) || 0 })} placeholder="0.00" />
                                                             </div>
                                                             <div className="space-y-1">
-                                                                <Label className="text-xs">Comissão REV</Label>
-                                                                <Input type="number" step="0.01" className="h-8" value={newMetric.commissionRev} onChange={(e) => setNewMetric({ ...newMetric, commissionRev: parseFloat(e.target.value) || 0 })} />
+                                                                <Label className="text-xs">Comissão REV (R$)</Label>
+                                                                <Input type="number" step="0.01" className="h-8" value={newMetric.commissionRev} onChange={(e) => setNewMetric({ ...newMetric, commissionRev: parseFloat(e.target.value) || 0 })} placeholder="0.00" />
                                                             </div>
                                                         </div>
                                                     </div>
@@ -810,7 +831,16 @@ export function AdminAffiliatesPage() {
                                                             >
                                                                 <TableCell className="font-medium text-xs border-r p-2">
                                                                     <div className="flex flex-col">
-                                                                        <span>{formatDate(metric.date)}</span>
+                                                                        {isEditing ? (
+                                                                            <Input
+                                                                                type="date"
+                                                                                className="h-8 bg-white text-xs"
+                                                                                value={metricValues.date || ''}
+                                                                                onChange={(e) => setMetricValues({ ...metricValues, date: e.target.value })}
+                                                                            />
+                                                                        ) : (
+                                                                            <span>{formatDate(metric.date)}</span>
+                                                                        )}
                                                                         <span className="text-slate-500 font-normal">{metric.campaign}</span>
                                                                     </div>
                                                                 </TableCell>
