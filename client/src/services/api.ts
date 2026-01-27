@@ -3,10 +3,23 @@ import axios from 'axios';
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || '/api',
     withCredentials: true,
+    timeout: 15000, // 15 seconds timeout
     headers: {
         'Content-Type': 'application/json',
     },
 });
+
+// Add response interceptor for better error handling
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        console.error('API Error:', error.message);
+        if (error.code === 'ECONNABORTED') {
+            console.error('Request timeout - server may be slow or unreachable');
+        }
+        return Promise.reject(error);
+    }
+);
 
 // Auth
 export const authApi = {

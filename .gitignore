@@ -1,1 +1,6 @@
 deploy_render.js
+*.csv
+*.log
+.DS_Store
+node_modules
+dist

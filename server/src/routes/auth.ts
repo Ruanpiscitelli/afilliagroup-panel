@@ -169,13 +169,6 @@ router.get('/me', async (req: Request, res: Response) => {
                 role: true,
                 status: true,
                 avatarUrl: true,
-                children: {
-                    select: {
-                        id: true,
-                        name: true,
-                        avatarUrl: true,
-                    }
-                }
             },
         });
 

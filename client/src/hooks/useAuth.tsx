@@ -23,19 +23,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        checkAuth();
-    }, []);
+        let isMounted = true;
 
-    const checkAuth = async () => {
-        try {
-            const { data } = await authApi.me();
-            setUser(data.user);
-        } catch {
-            setUser(null);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+        const checkAuth = async () => {
+            try {
+                const { data } = await authApi.me();
+                if (isMounted) {
+                    setUser(data.user);
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                if (isMounted) {
+                    setUser(null);
+                }
+            } finally {
+                if (isMounted) {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        checkAuth();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const login = async (email: string, password: string) => {
         const { data } = await authApi.login(email, password);
