@@ -5,7 +5,8 @@ WORKDIR /app
 
 # Define build argument for API URL
 # Use direct Railway URL for production (nginx proxy doesn't work with separate Railway services)
-ARG VITE_API_URL=https://server-production-c320.up.railway.app/api
+# Use relative URL to leverage nginx proxy (same-origin cookies)
+ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
 
 COPY package*.json ./
