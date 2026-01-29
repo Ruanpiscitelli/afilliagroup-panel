@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient, Status, Role } from '@prisma/client';
+import { PrismaClient, Status, Role, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z, ZodError } from 'zod';
@@ -9,7 +9,8 @@ const router = Router();
 // Login
 router.post('/login', async (req: Request, res: Response) => {
     const prisma = req.app.get('prisma') as PrismaClient;
-    const { email, password } = req.body;
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const password = String(req.body?.password || '');
 
     try {
         const user = await prisma.user.findUnique({ where: { email } });
@@ -54,12 +55,11 @@ router.post('/login', async (req: Request, res: Response) => {
             { expiresIn: '7d' }
         );
 
-        const isProduction = process.env.NODE_ENV === 'production';
-
+        const isProd = process.env.NODE_ENV === 'production';
         res.cookie('token', token, {
             httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? 'none' : 'lax', // Use 'none' for subdomain support on public suffixes
+            secure: isProd,
+            sameSite: isProd ? 'none' : 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         });
 
@@ -94,10 +94,11 @@ router.post('/register', async (req: Request, res: Response) => {
 
     try {
         const body = registerSchema.parse(req.body);
+        const email = body.email.trim().toLowerCase();
 
         // Check if email exists
         const existing = await prisma.user.findUnique({
-            where: { email: body.email },
+            where: { email },
         });
 
         if (existing) {
@@ -109,7 +110,7 @@ router.post('/register', async (req: Request, res: Response) => {
         const user = await prisma.user.create({
             data: {
                 name: body.name,
-                email: body.email,
+                email,
                 passwordHash,
                 role: Role.AFFILIATE,
                 status: Status.PENDING, // New registrations are PENDING
@@ -130,6 +131,9 @@ router.post('/register', async (req: Request, res: Response) => {
             user,
         });
     } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            return res.status(400).json({ error: 'Email já cadastrado' });
+        }
         if (error instanceof ZodError) {
             return res.status(400).json({ error: 'Dados inválidos', details: error.issues });
         }
@@ -140,11 +144,11 @@ router.post('/register', async (req: Request, res: Response) => {
 
 // Logout
 router.post('/logout', (_req: Request, res: Response) => {
-    const isProduction = process.env.NODE_ENV === 'production';
+    const isProd = process.env.NODE_ENV === 'production';
     res.clearCookie('token', {
         httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? 'none' : 'lax',
+        secure: isProd,
+        sameSite: isProd ? 'none' : 'lax',
     });
     return res.json({ message: 'Logout realizado com sucesso' });
 });
@@ -169,11 +173,23 @@ router.get('/me', async (req: Request, res: Response) => {
                 role: true,
                 status: true,
                 avatarUrl: true,
+                children: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        avatarUrl: true,
+                    },
+                },
             },
         });
 
         if (!user) {
             return res.status(401).json({ error: 'Usuário não encontrado' });
+        }
+
+        if (user.status !== Status.ACTIVE && user.role !== Role.ADMIN) {
+            return res.status(403).json({ error: 'Conta não ativa' });
         }
 
         // Attach user to request for middleware usage

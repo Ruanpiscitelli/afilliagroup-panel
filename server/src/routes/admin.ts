@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { z, ZodError } from 'zod';
 import bcrypt from 'bcryptjs';
 
@@ -192,10 +192,11 @@ router.post('/users', async (req: Request, res: Response) => {
 
     try {
         const body = createUserSchema.parse(req.body);
+        const email = body.email.trim().toLowerCase();
 
         // Check if email exists
         const existing = await prisma.user.findUnique({
-            where: { email: body.email },
+            where: { email },
         });
 
         if (existing) {
@@ -207,7 +208,7 @@ router.post('/users', async (req: Request, res: Response) => {
         const user = await prisma.user.create({
             data: {
                 name: body.name,
-                email: body.email,
+                email,
                 passwordHash,
                 role: 'AFFILIATE',
                 status: 'ACTIVE', // Created directly as active
@@ -234,6 +235,9 @@ router.post('/users', async (req: Request, res: Response) => {
             }
         });
     } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            return res.status(400).json({ error: 'Email já cadastrado' });
+        }
         if (error instanceof ZodError) {
             return res.status(400).json({ error: 'Dados inválidos', details: error.issues });
         }
@@ -498,10 +502,14 @@ router.put('/users/:id', async (req: Request, res: Response) => {
 
     try {
         const body = updateUserSchema.parse(req.body);
+        const updateData: any = { ...body };
+        if (body.email) {
+            updateData.email = body.email.trim().toLowerCase();
+        }
 
         const user = await prisma.user.update({
             where: { id: id as string },
-            data: body,
+            data: updateData,
             select: {
                 id: true,
                 name: true,
@@ -522,6 +530,9 @@ router.put('/users/:id', async (req: Request, res: Response) => {
             },
         });
     } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            return res.status(400).json({ error: 'Email já cadastrado' });
+        }
         if (error instanceof ZodError) {
             return res.status(400).json({ error: 'Dados inválidos', details: error.issues });
         }
