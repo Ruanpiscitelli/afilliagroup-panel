@@ -55,11 +55,12 @@ router.post('/login', async (req: Request, res: Response) => {
             { expiresIn: '7d' }
         );
 
-        const isProd = process.env.NODE_ENV === 'production';
+        // Always use secure cookies for cross-origin (Railway sets RAILWAY_ENVIRONMENT)
+        const isSecure = process.env.NODE_ENV === 'production' || !!process.env.RAILWAY_ENVIRONMENT;
         res.cookie('token', token, {
             httpOnly: true,
-            secure: isProd,
-            sameSite: isProd ? 'none' : 'lax',
+            secure: isSecure,
+            sameSite: isSecure ? 'none' : 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         });
 
@@ -144,11 +145,11 @@ router.post('/register', async (req: Request, res: Response) => {
 
 // Logout
 router.post('/logout', (_req: Request, res: Response) => {
-    const isProd = process.env.NODE_ENV === 'production';
+    const isSecure = process.env.NODE_ENV === 'production' || !!process.env.RAILWAY_ENVIRONMENT;
     res.clearCookie('token', {
         httpOnly: true,
-        secure: isProd,
-        sameSite: isProd ? 'none' : 'lax',
+        secure: isSecure,
+        sameSite: isSecure ? 'none' : 'lax',
     });
     return res.json({ message: 'Logout realizado com sucesso' });
 });
