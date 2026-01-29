@@ -62,6 +62,7 @@ router.post('/login', async (req: Request, res: Response) => {
             secure: isSecure,
             sameSite: isSecure ? 'none' : 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            path: '/', // Ensure cookie is available across all routes
         });
 
         return res.json({
@@ -150,6 +151,7 @@ router.post('/logout', (_req: Request, res: Response) => {
         httpOnly: true,
         secure: isSecure,
         sameSite: isSecure ? 'none' : 'lax',
+        path: '/', // Must match path used when setting cookie
     });
     return res.json({ message: 'Logout realizado com sucesso' });
 });

@@ -75,7 +75,8 @@ const authMiddleware = async (req: Request, res: Response, next: NextFunction) =
                 },
             });
 
-            if (user && user.status === 'ACTIVE') {
+            // Allow ACTIVE users OR any ADMIN (even if not ACTIVE)
+            if (user && (user.status === 'ACTIVE' || user.role === 'ADMIN')) {
                 (req as any).user = user;
             }
         } catch (error) {
