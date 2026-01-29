@@ -40,6 +40,7 @@ interface Affiliate {
     instagram: string | null;
     projectedFtds: string | null;
     cpaAmount: number;
+    status: string;
     createdAt: string;
     parentId?: string | null;
     parent?: { id: string; name: string };
@@ -76,6 +77,7 @@ export function AdminAffiliatesPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [newUserPassword, setNewUserPassword] = useState('');
     const [showNewUserPassword, setShowNewUserPassword] = useState(false);
+    const [statusFilter, setStatusFilter] = useState<string>('all');
     const [newUser, setNewUser] = useState({
         name: '',
         email: '',
@@ -102,9 +104,9 @@ export function AdminAffiliatesPage() {
     });
 
     const { data, isLoading } = useQuery({
-        queryKey: ['admin-affiliates'],
+        queryKey: ['admin-affiliates', statusFilter],
         queryFn: async () => {
-            const { data } = await adminApi.getAffiliates();
+            const { data } = await adminApi.getAffiliates(statusFilter);
             return data;
         },
     });
@@ -314,6 +316,20 @@ export function AdminAffiliatesPage() {
                         </p>
                     </div>
 
+                    <div className="flex items-center gap-3">
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger className="w-40">
+                                <SelectValue placeholder="Filtrar por status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todos</SelectItem>
+                                <SelectItem value="active">Ativos</SelectItem>
+                                <SelectItem value="pending">Pendentes</SelectItem>
+                                <SelectItem value="banned">Banidos</SelectItem>
+                                <SelectItem value="rejected">Rejeitados</SelectItem>
+                            </SelectContent>
+                        </Select>
+
                     <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
                         <DialogTrigger asChild>
                             <Button>
@@ -434,6 +450,7 @@ export function AdminAffiliatesPage() {
                             </form>
                         </DialogContent>
                     </Dialog>
+                    </div>
                 </div>
 
                 <Card>
@@ -452,6 +469,7 @@ export function AdminAffiliatesPage() {
                                     <TableRow>
                                         <TableHead>Nome</TableHead>
                                         <TableHead>Email</TableHead>
+                                        <TableHead>Status</TableHead>
                                         <TableHead>CPA</TableHead>
                                         <TableHead></TableHead>
                                     </TableRow>
@@ -478,6 +496,19 @@ export function AdminAffiliatesPage() {
                                                         {user.children.length} sub-contas
                                                     </span>
                                                 )}
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                                    user.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
+                                                    user.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                                                    user.status === 'BANNED' ? 'bg-red-100 text-red-700' :
+                                                    'bg-slate-100 text-slate-700'
+                                                }`}>
+                                                    {user.status === 'ACTIVE' ? 'Ativo' :
+                                                     user.status === 'PENDING' ? 'Pendente' :
+                                                     user.status === 'BANNED' ? 'Banido' :
+                                                     user.status === 'REJECTED' ? 'Rejeitado' : user.status}
+                                                </span>
                                             </TableCell>
                                             <TableCell>
                                                 <span className="font-medium text-slate-900">

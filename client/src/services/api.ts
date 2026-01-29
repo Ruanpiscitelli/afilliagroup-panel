@@ -61,7 +61,7 @@ export const adminApi = {
     getPerformanceAffiliates: (startDate?: string, endDate?: string) =>
         api.get('/admin/performance/affiliates', { params: { startDate, endDate } }),
     getRequests: () => api.get('/admin/requests'),
-    getAffiliates: () => api.get('/admin/affiliates'),
+    getAffiliates: (status?: string) => api.get('/admin/affiliates', { params: { status } }),
     getUser: (userId: string) => api.get(`/admin/users/${userId}`),
     updateUser: (userId: string, data: {
         name?: string;
@@ -84,6 +84,11 @@ export const adminApi = {
         commissionRev?: number;
     }) => api.put(`/admin/metrics/${metricId}`, data),
     createMetric: (data: any) => api.post('/admin/metrics', data),
+    // Metrics spreadsheet routes
+    getAllMetrics: (params?: { startDate?: string; endDate?: string; userId?: string; page?: number; limit?: number }) =>
+        api.get('/admin/metrics/all', { params }),
+    bulkUpdateMetrics: (updates: Array<{ id: number; data: Record<string, number> }>) =>
+        api.put('/admin/metrics/bulk', { updates }),
     updateStatus: (userId: string, status: 'ACTIVE' | 'REJECTED' | 'BANNED') =>
         api.put(`/admin/users/${userId}/status`, { status }),
     updateCpa: (userId: string, cpaAmount: number) =>

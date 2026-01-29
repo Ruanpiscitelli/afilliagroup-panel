@@ -50,16 +50,22 @@ router.get('/requests', async (req: Request, res: Response) => {
     }
 });
 
-// GET /admin/affiliates - List active affiliates
+// GET /admin/affiliates - List affiliates (all by default, or filtered by status)
 router.get('/affiliates', async (req: Request, res: Response) => {
     const prisma = req.app.get('prisma') as PrismaClient;
+    const statusFilter = req.query.status as string;
 
     try {
-        const activeUsers = await prisma.user.findMany({
-            where: {
-                status: 'ACTIVE',
-                role: 'AFFILIATE',
-            },
+        // Build where clause - show ALL affiliates by default
+        const where: any = { role: 'AFFILIATE' };
+
+        // Apply status filter if specified (and not 'all')
+        if (statusFilter && statusFilter !== 'all') {
+            where.status = statusFilter.toUpperCase();
+        }
+
+        const users = await prisma.user.findMany({
+            where,
             select: {
                 id: true,
                 name: true,
@@ -68,6 +74,7 @@ router.get('/affiliates', async (req: Request, res: Response) => {
                 instagram: true,
                 projectedFtds: true,
                 cpaAmount: true,
+                status: true,
                 createdAt: true,
                 parentId: true,
                 parent: {
@@ -90,7 +97,7 @@ router.get('/affiliates', async (req: Request, res: Response) => {
         });
 
         return res.json({
-            users: activeUsers.map(u => ({
+            users: users.map(u => ({
                 ...u,
                 cpaAmount: Number(u.cpaAmount),
             }))
@@ -665,6 +672,123 @@ router.put('/metrics/:id', async (req: Request, res: Response) => {
         }
         console.error('Update metric error:', error);
         return res.status(500).json({ error: 'Erro ao atualizar métrica' });
+    }
+});
+
+// PUT /admin/metrics/bulk - Bulk update metrics (for spreadsheet interface)
+const bulkUpdateMetricSchema = z.object({
+    updates: z.array(z.object({
+        id: z.number(),
+        data: z.object({
+            clicks: z.number().min(0).optional(),
+            registrations: z.number().min(0).optional(),
+            ftds: z.number().min(0).optional(),
+            qualifiedCpa: z.number().min(0).optional(),
+            depositAmount: z.number().min(0).optional(),
+            commissionCpa: z.number().min(0).optional(),
+            commissionRev: z.number().min(0).optional(),
+        }),
+    })),
+});
+
+router.put('/metrics/bulk', async (req: Request, res: Response) => {
+    const prisma = req.app.get('prisma') as PrismaClient;
+
+    try {
+        const body = bulkUpdateMetricSchema.parse(req.body);
+
+        // Execute all updates in a transaction
+        const results = await prisma.$transaction(
+            body.updates.map(update =>
+                prisma.dailyMetric.update({
+                    where: { id: update.id },
+                    data: update.data,
+                })
+            )
+        );
+
+        return res.json({
+            message: `${results.length} métricas atualizadas`,
+            count: results.length,
+        });
+    } catch (error) {
+        if (error instanceof ZodError) {
+            return res.status(400).json({ error: 'Dados inválidos', details: error.issues });
+        }
+        console.error('Bulk update metrics error:', error);
+        return res.status(500).json({ error: 'Erro ao atualizar métricas' });
+    }
+});
+
+// GET /admin/metrics/all - Get all metrics for spreadsheet (with pagination)
+router.get('/metrics/all', async (req: Request, res: Response) => {
+    const prisma = req.app.get('prisma') as PrismaClient;
+    const { startDate, endDate, userId, page = '1', limit = '100' } = req.query;
+
+    try {
+        const where: any = {};
+
+        if (startDate || endDate) {
+            where.date = {};
+            if (startDate) where.date.gte = new Date(startDate as string);
+            if (endDate) {
+                const end = new Date(endDate as string);
+                end.setHours(23, 59, 59, 999);
+                where.date.lte = end;
+            }
+        }
+
+        if (userId) {
+            where.userId = userId as string;
+        }
+
+        const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+        const take = parseInt(limit as string);
+
+        const [metrics, total] = await Promise.all([
+            prisma.dailyMetric.findMany({
+                where,
+                include: {
+                    user: {
+                        select: { id: true, name: true, email: true },
+                    },
+                    link: {
+                        include: { campaign: true },
+                    },
+                },
+                orderBy: [{ date: 'desc' }, { user: { name: 'asc' } }],
+                skip,
+                take,
+            }),
+            prisma.dailyMetric.count({ where }),
+        ]);
+
+        return res.json({
+            metrics: metrics.map(m => ({
+                id: m.id,
+                date: m.date.toISOString().split('T')[0],
+                userId: m.userId,
+                userName: m.user?.name || 'N/A',
+                userEmail: m.user?.email || 'N/A',
+                campaign: m.link?.campaign?.name || 'N/A',
+                clicks: m.clicks,
+                registrations: m.registrations,
+                ftds: m.ftds,
+                qualifiedCpa: m.qualifiedCpa,
+                depositAmount: Number(m.depositAmount),
+                commissionCpa: Number(m.commissionCpa),
+                commissionRev: Number(m.commissionRev),
+            })),
+            pagination: {
+                page: parseInt(page as string),
+                limit: parseInt(limit as string),
+                total,
+                totalPages: Math.ceil(total / parseInt(limit as string)),
+            },
+        });
+    } catch (error) {
+        console.error('Get all metrics error:', error);
+        return res.status(500).json({ error: 'Erro ao buscar métricas' });
     }
 });
 

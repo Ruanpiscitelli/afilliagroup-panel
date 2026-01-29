@@ -6,7 +6,8 @@ import {
     LogOut,
     ChevronLeft,
     Link2,
-    LayoutDashboard
+    LayoutDashboard,
+    Table
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { authApi, adminApi } from '@/services/api';
@@ -62,6 +63,12 @@ export function AdminLayout() {
             label: 'Base de Afiliados',
             href: '/admin/affiliates',
             icon: Users,
+            badge: null,
+        },
+        {
+            label: 'Planilha de Métricas',
+            href: '/admin/metrics',
+            icon: Table,
             badge: null,
         },
         {

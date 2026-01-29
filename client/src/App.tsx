@@ -13,6 +13,7 @@ import { AdminRequestsPage } from '@/pages/admin/RequestsPage';
 import { AdminAffiliatesPage } from '@/pages/admin/AffiliatesPage';
 import { LinksManagementPage } from '@/pages/admin/LinksManagementPage';
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage';
+import { MetricsSpreadsheet } from '@/pages/admin/MetricsSpreadsheet';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,6 +64,7 @@ function App() {
                   <Route path="dashboard" element={<AdminDashboardPage />} />
                   <Route path="requests" element={<AdminRequestsPage />} />
                   <Route path="affiliates" element={<AdminAffiliatesPage />} />
+                  <Route path="metrics" element={<MetricsSpreadsheet />} />
                   <Route path="links" element={<LinksManagementPage />} />
                 </Route>
               </Routes>
