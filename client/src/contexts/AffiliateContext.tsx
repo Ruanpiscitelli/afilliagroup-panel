@@ -26,12 +26,15 @@ export function AffiliateProvider({ children }: { children: React.ReactNode }) {
     // Initialize selected ID
     useEffect(() => {
         if (userData?.id && !selectedAffiliateId) {
-            // Se tiver filhos, default é 'all', senão é o próprio ID (que é igual a 'all' na prática mas explícito é melhor)
+            // ADMIN users should see ALL data by default
+            // Affiliates with children (sub-accounts) should also see 'all'
+            // Regular affiliates see only their own data
+            const isAdmin = userData.role === 'ADMIN';
             const hasChildren = userData.children && userData.children.length > 0;
-            setSelectedAffiliateId(hasChildren ? 'all' : userData.id);
+            setSelectedAffiliateId((isAdmin || hasChildren) ? 'all' : userData.id);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userData?.id, userData?.children?.length]);
+    }, [userData?.id, userData?.children?.length, userData?.role]);
 
     const subAccounts = userData?.children || [];
     const isMasterAccount = subAccounts.length > 0;
