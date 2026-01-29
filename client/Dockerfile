@@ -4,9 +4,10 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Define build argument for API URL
-# Use direct Railway URL for production (nginx proxy doesn't work with separate Railway services)
-# Use relative URL to leverage nginx proxy (same-origin cookies)
-ARG VITE_API_URL=/api
+# IMPORTANTE: A URL deve incluir /api no final
+# Em produção: https://server-production-c320.up.railway.app/api
+# Em dev local: /api (usa proxy do nginx ou vite)
+ARG VITE_API_URL=https://server-production-c320.up.railway.app/api
 ENV VITE_API_URL=$VITE_API_URL
 
 COPY package*.json ./
